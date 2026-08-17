@@ -6,16 +6,6 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-type TenantHandler struct {
-	Method            string
-	Path              string
-	BeforeMiddlewares []echo.MiddlewareFunc
-	Middlewares       []echo.MiddlewareFunc
-	RequiredPerms     []string
-	AnyRequiredPerms  []string
-	Handler           echo.HandlerFunc
-}
-
 // Public
 type PublicHandler struct {
 	PublicRoute

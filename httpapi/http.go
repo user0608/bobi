@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net"
 	"net/http"
 	"time"
 
@@ -35,24 +36,11 @@ func NewServer(routes []Route) *echo.Echo {
 	server := echo.New()
 	server.Use(middleware.RequestLogger())
 	server.Use(middleware.Recover())
+	server.Use(middleware.CORS())
 
 	for _, route := range routes {
 		routeMiddlewares := buildMiddlewares(route)
-
-		switch route.GetMethod() {
-		case http.MethodGet:
-			server.GET(route.GetPath(), route.HandleRequest, routeMiddlewares...)
-		case http.MethodPost:
-			server.POST(route.GetPath(), route.HandleRequest, routeMiddlewares...)
-		case http.MethodPut:
-			server.PUT(route.GetPath(), route.HandleRequest, routeMiddlewares...)
-		case http.MethodDelete:
-			server.DELETE(route.GetPath(), route.HandleRequest, routeMiddlewares...)
-		case http.MethodPatch:
-			server.PATCH(route.GetPath(), route.HandleRequest, routeMiddlewares...)
-		default:
-			slog.Warn("unsupported route method", "method", route.GetMethod(), "path", route.GetPath())
-		}
+		server.Add(route.GetMethod(), route.GetPath(), route.HandleRequest, routeMiddlewares...)
 	}
 
 	return server
@@ -84,12 +72,20 @@ func StartWebServer(
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			e.Use(middleware.CORS())
+			address := server.Addr
+			if address == "" {
+				address = ":http"
+			}
+
+			listener, err := net.Listen("tcp", address)
+			if err != nil {
+				return err
+			}
 
 			go func() {
 				slog.Info("Starting HTTP server", "address", server.Addr)
 
-				if err := server.ListenAndServe(); err != nil &&
+				if err := server.Serve(listener); err != nil &&
 					!errors.Is(err, http.ErrServerClosed) {
 					slog.Error("HTTP server error", "error", err)
 				}
