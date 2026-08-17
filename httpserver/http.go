@@ -36,7 +36,7 @@ func NewServer(routes []Route) *echo.Echo {
 	server := echo.New()
 	server.Use(middleware.RequestLogger())
 	server.Use(middleware.Recover())
-	server.Use(middleware.CORS())
+	server.Use(middleware.CORS("*"))
 
 	for _, route := range routes {
 		routeMiddlewares := buildMiddlewares(route)
