@@ -1,0 +1,97 @@
+package connection
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+	"gorm.io/gorm/schema"
+)
+
+type storageManager struct {
+	db *gorm.DB
+}
+
+var _ StorageManager = (*storageManager)(nil)
+
+func NewConnection(config DBConfigParams) (StorageManager, error) {
+	if config.Backend == "" || config.Backend == BackendNone {
+		return SkipStorage()
+	}
+
+	var dialector gorm.Dialector
+	switch config.Backend {
+	case BackendPostgres:
+		dialector = postgresDialector(config)
+	case BackendSQLite:
+		dialector = sqliteDialector(config)
+	default:
+		return nil, fmt.Errorf("unsupported storage backend: %q", config.Backend)
+	}
+
+	db, err := openConnection(dialector, config.LogLevel)
+	if err != nil {
+		return nil, err
+	}
+
+	return &storageManager{db: db}, nil
+}
+
+func openConnection(dialector gorm.Dialector, logLevel string) (*gorm.DB, error) {
+	db, err := gorm.Open(dialector, &gorm.Config{
+		SkipDefaultTransaction: true,
+		Logger:                 logger.Default.LogMode(parseLogLevel(logLevel)),
+		NamingStrategy: schema.NamingStrategy{
+			SingularTable: true,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	log.Println("Database connection established successfully.")
+
+	return db, nil
+}
+
+func parseLogLevel(value string) logger.LogLevel {
+	switch value {
+	case "info":
+		return logger.Info
+	case "error":
+		return logger.Error
+	case "warn":
+		return logger.Warn
+	default:
+		return logger.Silent
+	}
+}
+
+type txContextKey struct{}
+
+var transactionKey txContextKey
+
+func (s *storageManager) Conn(ctx context.Context) *gorm.DB {
+	if tx, ok := ctx.Value(transactionKey).(*gorm.DB); ok {
+		return tx.WithContext(ctx)
+	}
+
+	return s.db.WithContext(ctx)
+}
+
+func (s *storageManager) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	if fn == nil {
+		return nil
+	}
+
+	if _, ok := ctx.Value(transactionKey).(*gorm.DB); ok {
+		return fn(ctx)
+	}
+
+	return s.Conn(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := context.WithValue(ctx, transactionKey, tx)
+		return fn(txCtx)
+	})
+}
