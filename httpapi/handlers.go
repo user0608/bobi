@@ -31,8 +31,6 @@ type PublicHandler struct {
 var _ Route = (*PublicHandler)(nil)
 var _ BeforeSecurityMiddlewareProvider = (*PublicHandler)(nil)
 var _ AfterSecurityMiddlewareProvider = (*PublicHandler)(nil)
-var _ PermissionsProvider = (*PublicHandler)(nil)
-var _ AnyPermissionsProvider = (*PublicHandler)(nil)
 
 // GetMethod implements [Route].
 func (h *PublicHandler) GetMethod() string {
@@ -66,12 +64,4 @@ func (h *PublicHandler) BeforeSecurityMiddlewares() []echo.MiddlewareFunc {
 // AfterSecurityMiddlewares implements [AfterSecurityMiddlewareProvider].
 func (h *PublicHandler) AfterSecurityMiddlewares() []echo.MiddlewareFunc {
 	return h.Middlewares
-}
-
-func (h *PublicHandler) Permissions() []string {
-	return h.RequiredPerms
-}
-
-func (h *PublicHandler) AnyPermissions() []string {
-	return h.AnyRequiredPerms
 }
