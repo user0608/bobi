@@ -51,6 +51,17 @@ func openConnection(dialector gorm.Dialector, logLevel string) (*gorm.DB, error)
 		return nil, err
 	}
 
+	if dialector.Name() == string(BackendSQLite) {
+		sqlDB, err := db.DB()
+		if err != nil {
+			return nil, err
+		}
+		// SQLite permits one writer at a time. A single pooled connection avoids
+		// per-connection PRAGMA differences and lets busy_timeout do its job.
+		sqlDB.SetMaxOpenConns(1)
+		sqlDB.SetMaxIdleConns(1)
+	}
+
 	log.Println("Database connection established successfully.")
 
 	return db, nil
