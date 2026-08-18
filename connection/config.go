@@ -6,22 +6,21 @@ import (
 	"gorm.io/gorm"
 )
 
-type StorageBackend string
+type DatabaseDriver string
 
 const (
-	BackendPostgres StorageBackend = "postgres"
-	BackendSQLite   StorageBackend = "sqlite"
-	BackendNone     StorageBackend = "none"
+	DatabaseDriverSQLite   DatabaseDriver = "sqlite"
+	DatabaseDriverPostgres DatabaseDriver = "postgres"
 )
 
-type DBConfigParams struct {
-	Backend  StorageBackend
-	Host     string
-	Port     uint
-	Database string
-	Username string
-	Password string
-	LogLevel string
+type DatabaseConfig struct {
+	Driver   DatabaseDriver `mapstructure:"driver"`
+	Host     string         `mapstructure:"host"`
+	Port     uint           `mapstructure:"port"`
+	Database string         `mapstructure:"database"`
+	Username string         `mapstructure:"username"`
+	Password string         `mapstructure:"password"`
+	LogLevel string         `mapstructure:"log_level"`
 }
 
 type StorageManager interface {

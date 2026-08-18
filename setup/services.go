@@ -1,0 +1,85 @@
+package setup
+
+import (
+	"io/fs"
+	"os"
+
+	"github.com/spf13/viper"
+	"github.com/user0608/bobi/configs"
+	"github.com/user0608/bobi/connection"
+	"github.com/user0608/bobi/httpserver"
+	"github.com/user0608/bobi/setup/migrations"
+	"go.uber.org/fx"
+)
+
+type Service struct {
+	version          string
+	migrationFS      fs.FS
+	skipConfigLoad   bool
+	skipDBConnection bool
+}
+
+func NewService(opts ...Option) *Service {
+	s := &Service{}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
+}
+
+func (s *Service) Run(opts ...fx.Option) {
+	if s.migrationFS != nil {
+		if action, ok := migrations.ParseMigrateCommand(os.Args[1:]); ok {
+			s.runMigration(action)
+			return
+		}
+	}
+
+	var options = s.baseOptions()
+	options = append(options, opts...)
+	options = append(options,
+		fx.Provide(s.httpServerSettings),
+		httpserver.Module,
+	)
+
+	fx.New(options...).Run()
+}
+
+func (s *Service) httpServerSettings(v *viper.Viper) (httpserver.HttpApiConfig, error) {
+	var config httpserver.HttpApiConfig
+	if err := v.Unmarshal(&config); err != nil {
+		return httpserver.HttpApiConfig{}, err
+	}
+	return config, nil
+}
+
+func (s *Service) databaseSettings(v *viper.Viper) (connection.DatabaseConfig, error) {
+	var config connection.DatabaseConfig
+	if err := v.UnmarshalKey("database", &config); err != nil {
+		return connection.DatabaseConfig{}, err
+	}
+	return config, nil
+}
+
+func (s *Service) baseOptions() []fx.Option {
+
+	var options = []fx.Option{}
+	if !s.skipConfigLoad {
+		options = append(options, fx.Provide(configs.LoadConfigFromCLIArgs))
+	}
+	if !s.skipDBConnection {
+		options = append(options,
+			fx.Provide(s.databaseSettings, connection.NewConnection),
+		)
+	}
+	if s.migrationFS != nil {
+		options = append(options,
+			fx.Supply(migrations.MigrationFS(s.migrationFS)),
+			fx.Provide(migrations.NewMigrationRunner),
+		)
+	}
+
+	return options
+}

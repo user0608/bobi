@@ -62,8 +62,8 @@ func NewPostgresStorage(t *testing.T) connection.StorageManager {
 func NewSQLiteStorage(t *testing.T) connection.StorageManager {
 	t.Helper()
 
-	storage, err := connection.NewConnection(connection.DBConfigParams{
-		Backend:  connection.BackendSQLite,
+	storage, err := connection.NewConnection(connection.DatabaseConfig{
+		Driver:   connection.DatabaseDriverSQLite,
 		Database: filepath.Join(t.TempDir(), "test.db"),
 		LogLevel: testLogLevel,
 	})
@@ -116,8 +116,8 @@ func newStorageFromContainer(ctx context.Context, container *tcpostgres.Postgres
 		return nil, err
 	}
 
-	return connection.NewConnection(connection.DBConfigParams{
-		Backend:  connection.BackendPostgres,
+	return connection.NewConnection(connection.DatabaseConfig{
+		Driver:   connection.DatabaseDriverPostgres,
 		Host:     host,
 		Port:     uint(port),
 		Username: testUsername,

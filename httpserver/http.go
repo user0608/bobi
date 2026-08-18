@@ -57,13 +57,13 @@ var Module = fx.Module("http-server",
 )
 
 type HttpApiConfig struct {
-	Address string
+	Address string `mapstructure:"address"`
 }
 
 func StartWebServer(
 	lc fx.Lifecycle,
 	e *echo.Echo,
-	c *HttpApiConfig,
+	c HttpApiConfig,
 ) {
 	server := http.Server{
 		Addr:    c.Address,

@@ -16,19 +16,27 @@ type storageManager struct {
 
 var _ StorageManager = (*storageManager)(nil)
 
-func NewConnection(config DBConfigParams) (StorageManager, error) {
-	if config.Backend == "" || config.Backend == BackendNone {
-		return SkipStorage()
-	}
-
+func NewConnection(config DatabaseConfig) (StorageManager, error) {
 	var dialector gorm.Dialector
-	switch config.Backend {
-	case BackendPostgres:
+	switch config.Driver {
+	case DatabaseDriverPostgres:
 		dialector = postgresDialector(config)
-	case BackendSQLite:
+	case DatabaseDriverSQLite:
 		dialector = sqliteDialector(config)
+	case DatabaseDriver(""):
+		return nil, fmt.Errorf(
+			"database driver is required; supported drivers are %q and %q",
+			DatabaseDriverPostgres,
+			DatabaseDriverSQLite,
+		)
+
 	default:
-		return nil, fmt.Errorf("unsupported storage backend: %q", config.Backend)
+		return nil, fmt.Errorf(
+			"unsupported database driver %q; supported drivers are %q and %q",
+			config.Driver,
+			DatabaseDriverPostgres,
+			DatabaseDriverSQLite,
+		)
 	}
 
 	db, err := openConnection(dialector, config.LogLevel)
@@ -51,7 +59,7 @@ func openConnection(dialector gorm.Dialector, logLevel string) (*gorm.DB, error)
 		return nil, err
 	}
 
-	if dialector.Name() == string(BackendSQLite) {
+	if dialector.Name() == string(DatabaseDriverSQLite) {
 		sqlDB, err := db.DB()
 		if err != nil {
 			return nil, err

@@ -7,8 +7,8 @@ import (
 )
 
 func TestSQLiteProductionSettings(t *testing.T) {
-	storage, err := NewConnection(DBConfigParams{
-		Backend:  BackendSQLite,
+	storage, err := NewConnection(DatabaseConfig{
+		Driver:   DatabaseDriverSQLite,
 		Database: filepath.Join(t.TempDir(), "production.db"),
 	})
 	if err != nil {

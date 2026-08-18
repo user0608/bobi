@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func postgresDialector(config DBConfigParams) gorm.Dialector {
+func postgresDialector(config DatabaseConfig) gorm.Dialector {
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%d sslmode=disable",
 		config.Host,

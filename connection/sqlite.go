@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func sqliteDialector(config DBConfigParams) gorm.Dialector {
+func sqliteDialector(config DatabaseConfig) gorm.Dialector {
 	values := url.Values{}
 	values.Add("_pragma", "journal_mode(WAL)")
 	values.Add("_pragma", "busy_timeout(5000)")
