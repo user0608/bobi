@@ -16,6 +16,7 @@ import (
 type Service struct {
 	version          string
 	migrationFS      fs.FS
+	spaFS            fs.FS // ReactJS
 	skipConfigLoad   bool
 	skipDBConnection bool
 }
