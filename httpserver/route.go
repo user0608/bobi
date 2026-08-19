@@ -20,23 +20,3 @@ func AsRoute(fn any) any {
 		fx.ResultTags(RouteTag),
 	)
 }
-
-// region Public
-
-type publicRouteMarker interface{ isPublicRoute() }
-
-var _ publicRouteMarker = (*PublicRoute)(nil)
-
-type PublicRoute struct{}
-
-func (*PublicRoute) isPublicRoute() {}
-
-// region System
-
-type systemRouteMarker interface{ isSystemRoute() }
-
-var _ systemRouteMarker = (*SystemRoute)(nil)
-
-type SystemRoute struct{}
-
-func (*SystemRoute) isSystemRoute() {}

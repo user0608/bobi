@@ -8,7 +8,6 @@ import (
 
 // Public
 type PublicHandler struct {
-	PublicRoute
 	Method            string
 	Path              string
 	BeforeMiddlewares []echo.MiddlewareFunc
