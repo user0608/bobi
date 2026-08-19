@@ -8,6 +8,7 @@ import (
 	"github.com/user0608/bobi/configs"
 	"github.com/user0608/bobi/connection"
 	"github.com/user0608/bobi/httpserver"
+	"github.com/user0608/bobi/jwtkeys"
 	"github.com/user0608/bobi/setup/migrations"
 	"go.uber.org/fx"
 )
@@ -38,29 +39,14 @@ func (s *Service) Run(opts ...fx.Option) {
 	}
 
 	var options = s.baseOptions()
+	options = append(options, fx.Provide(s.jwtKeysConfig, jwtkeys.NewJwtKeyStore))
 	options = append(options, opts...)
 	options = append(options,
-		fx.Provide(s.httpServerSettings),
+		fx.Provide(s.httpServerConfig),
 		httpserver.Module,
 	)
 
 	fx.New(options...).Run()
-}
-
-func (s *Service) httpServerSettings(v *viper.Viper) (httpserver.HttpApiConfig, error) {
-	var config httpserver.HttpApiConfig
-	if err := v.Unmarshal(&config); err != nil {
-		return httpserver.HttpApiConfig{}, err
-	}
-	return config, nil
-}
-
-func (s *Service) databaseSettings(v *viper.Viper) (connection.DatabaseConfig, error) {
-	var config connection.DatabaseConfig
-	if err := v.UnmarshalKey("database", &config); err != nil {
-		return connection.DatabaseConfig{}, err
-	}
-	return config, nil
 }
 
 func (s *Service) baseOptions() []fx.Option {
@@ -71,7 +57,7 @@ func (s *Service) baseOptions() []fx.Option {
 	}
 	if !s.skipDBConnection {
 		options = append(options,
-			fx.Provide(s.databaseSettings, connection.NewConnection),
+			fx.Provide(s.databaseConfig, connection.NewConnection),
 		)
 	}
 	if s.migrationFS != nil {
@@ -82,4 +68,28 @@ func (s *Service) baseOptions() []fx.Option {
 	}
 
 	return options
+}
+
+func (s *Service) httpServerConfig(v *viper.Viper) (httpserver.HttpApiConfig, error) {
+	var config httpserver.HttpApiConfig
+	if err := v.Unmarshal(&config); err != nil {
+		return httpserver.HttpApiConfig{}, err
+	}
+	return config, nil
+}
+
+func (s *Service) databaseConfig(v *viper.Viper) (connection.DatabaseConfig, error) {
+	var config connection.DatabaseConfig
+	if err := v.UnmarshalKey("database", &config); err != nil {
+		return connection.DatabaseConfig{}, err
+	}
+	return config, nil
+}
+
+func (s *Service) jwtKeysConfig(v *viper.Viper) (jwtkeys.JwtKeysConfig, error) {
+	var config jwtkeys.JwtKeysConfig
+	if err := v.UnmarshalKey("database", &config); err != nil {
+		return jwtkeys.JwtKeysConfig{}, err
+	}
+	return config, nil
 }
