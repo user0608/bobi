@@ -29,7 +29,6 @@ CREATE TABLE schema_version (version INTEGER);
 -- +goose Down
 DROP TABLE schema_version;
 `)},
-		"migrations/003_without_up.sql": &fstest.MapFile{Data: []byte("CREATE TABLE ignored (id INTEGER);\n")},
 		"migrations/notes.txt":          &fstest.MapFile{Data: []byte("not SQL")},
 		"migrations/subdir/ignored.sql": &fstest.MapFile{Data: []byte("-- +goose Up\nCREATE TABLE ignored_dir (id INTEGER);\n-- +goose Down\n")},
 	}
@@ -43,6 +42,32 @@ DROP TABLE schema_version;
 	want := "-- 001_schema.sql\nCREATE TABLE schema_version (version INTEGER);\n-- 002_users.sql\nCREATE TABLE users (\nid INTEGER PRIMARY KEY\n);\n"
 	if got != want {
 		t.Fatalf("SQLScript() = %q, want %q", got, want)
+	}
+}
+
+func TestMigrationRunnerSQLScriptWithoutDownSection(t *testing.T) {
+	runner := NewMigrationScriptRunner(fstest.MapFS{
+		"migrations/001_schema.sql": &fstest.MapFile{Data: []byte("-- +goose Up\nCREATE TABLE schema_version (version INTEGER);\n")},
+	})
+
+	got, err := runner.SQLScript()
+	if err != nil {
+		t.Fatalf("SQLScript() error = %v", err)
+	}
+	want := "-- 001_schema.sql\nCREATE TABLE schema_version (version INTEGER);\n"
+	if got != want {
+		t.Fatalf("SQLScript() = %q, want %q", got, want)
+	}
+}
+
+func TestMigrationRunnerSQLScriptRejectsMissingUpSection(t *testing.T) {
+	runner := NewMigrationScriptRunner(fstest.MapFS{
+		"migrations/001_invalid.sql": &fstest.MapFile{Data: []byte("CREATE TABLE invalid (id INTEGER);\n")},
+	})
+
+	_, err := runner.SQLScript()
+	if err == nil || !strings.Contains(err.Error(), "001_invalid.sql") {
+		t.Fatalf("SQLScript() error = %v, want malformed migration error", err)
 	}
 }
 
@@ -105,6 +130,16 @@ func TestMigrationRunnerNilFSOperations(t *testing.T) {
 	}
 	if err := runner.Status(ctx); err != nil {
 		t.Fatalf("Status() error = %v", err)
+	}
+}
+
+func TestMigrationRunnerRequiresStorage(t *testing.T) {
+	runner := NewMigrationRunner(nil, fstest.MapFS{
+		"migrations/001_schema.sql": &fstest.MapFile{Data: []byte("-- +goose Up\nCREATE TABLE schema_version (version INTEGER);\n-- +goose Down\nDROP TABLE schema_version;\n")},
+	})
+
+	if err := runner.Up(context.Background()); err == nil || !strings.Contains(err.Error(), "storage manager is required") {
+		t.Fatalf("Up() error = %v, want missing storage manager error", err)
 	}
 }
 

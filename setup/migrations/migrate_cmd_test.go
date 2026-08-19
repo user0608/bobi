@@ -106,10 +106,9 @@ func TestParseMigrateCommand(t *testing.T) {
 			ok:     true,
 		},
 		{
-			name:   "extra positional argument is ignored",
-			args:   []string{"migrate", "up", "extra"},
-			action: "up",
-			ok:     true,
+			name: "extra positional argument is invalid",
+			args: []string{"migrate", "up", "extra"},
+			ok:   false,
 		},
 		{
 			name: "empty args",

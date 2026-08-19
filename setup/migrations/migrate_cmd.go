@@ -10,9 +10,9 @@ var allowedMigrateActions = map[string]struct{}{
 }
 
 func ParseMigrateCommand(args []string) (string, bool) {
-	cmd, action := parseCommandArgs(args)
+	cmd, action, extra := parseCommandArgs(args)
 
-	if cmd != "migrate" {
+	if cmd != "migrate" || extra {
 		return "", false
 	}
 
@@ -23,7 +23,7 @@ func ParseMigrateCommand(args []string) (string, bool) {
 	return action, true
 }
 
-func parseCommandArgs(args []string) (cmd, action string) {
+func parseCommandArgs(args []string) (cmd, action string, extra bool) {
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 
@@ -45,13 +45,16 @@ func parseCommandArgs(args []string) (cmd, action string) {
 
 		if action == "" {
 			action = arg
+			continue
 		}
+
+		extra = true
 	}
 
-	return cmd, action
+	return cmd, action, extra
 }
 
-func firstTwoPositional(args []string) (cmd, action string) {
+func firstTwoPositional(args []string) (cmd, action string, extra bool) {
 	for _, arg := range args {
 		if cmd == "" {
 			cmd = arg
@@ -60,11 +63,13 @@ func firstTwoPositional(args []string) (cmd, action string) {
 
 		if action == "" {
 			action = arg
-			return cmd, action
+			continue
 		}
+
+		extra = true
 	}
 
-	return cmd, action
+	return cmd, action, extra
 }
 
 func isFlag(arg string) bool {

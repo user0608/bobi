@@ -11,6 +11,11 @@ import (
 )
 
 func (s *Service) runMigration(action string) {
+	if action == "script" {
+		s.runMigrationScript()
+		return
+	}
+
 	app := fx.New(
 		fx.NopLogger,
 		fx.Options(s.baseOptions()...),
@@ -24,9 +29,23 @@ func (s *Service) runMigration(action string) {
 	app.Run()
 }
 
+func (s *Service) runMigrationScript() {
+	app := fx.New(
+		fx.NopLogger,
+		fx.Supply(migrations.MigrationFS(s.migrationFS)),
+		fx.Provide(migrations.NewMigrationScriptRunner),
+		fx.Invoke(func(mr *migrations.MigrationRunner, shutdowner fx.Shutdowner) {
+			exitCode := runMigrationAction(context.Background(), mr, "script", os.Stdout)
+			_ = shutdowner.Shutdown(fx.ExitCode(exitCode))
+		}),
+	)
+
+	app.Run()
+}
+
 func runMigrationAction(ctx context.Context, mr *migrations.MigrationRunner, action string, out io.Writer) int {
 	if err := executeMigrationAction(ctx, mr, action, out); err != nil {
-		_, _ = fmt.Fprintln(os.Stderr, err)
+		_, _ = fmt.Fprintln(out, err)
 		return 1
 	}
 

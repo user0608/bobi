@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/pressly/goose/v3"
 	"github.com/user0608/bobi/connection"
@@ -26,6 +28,8 @@ type MigrationRunner struct {
 	migrationFS    fs.FS
 }
 
+var gooseMu sync.Mutex
+
 func NewMigrationRunner(
 	storageManager connection.StorageManager,
 	mfs MigrationFS,
@@ -35,6 +39,10 @@ func NewMigrationRunner(
 		storageManager: storageManager,
 		migrationFS:    mfs,
 	}
+}
+
+func NewMigrationScriptRunner(mfs MigrationFS) *MigrationRunner {
+	return &MigrationRunner{migrationFS: mfs}
 }
 
 func (mr *MigrationRunner) SQLScript() (string, error) {
@@ -51,7 +59,7 @@ func (mr *MigrationRunner) SQLScript() (string, error) {
 		return entries[i].Name() < entries[j].Name()
 	})
 
-	rgx := regexp.MustCompile(`(?s)-- \+goose Up(.*?)-- \+goose Down`)
+	rgx := regexp.MustCompile(`(?s)-- \+goose Up(.*?)(?:-- \+goose Down|$)`)
 
 	var output strings.Builder
 
@@ -69,7 +77,7 @@ func (mr *MigrationRunner) SQLScript() (string, error) {
 
 		match := rgx.FindSubmatch(content)
 		if match == nil {
-			continue
+			return "", fmt.Errorf("migration file %q has no goose Up section", filePath)
 		}
 
 		fmt.Fprintf(&output, "-- %s\n", entry.Name())
@@ -95,17 +103,35 @@ func (mr *MigrationRunner) SQLScript() (string, error) {
 }
 
 func (mr *MigrationRunner) setupGoose(ctx context.Context) (*sql.DB, error) {
+	if mr.storageManager == nil {
+		return nil, errors.New("migration storage manager is required")
+	}
 
 	tx := mr.storageManager.Conn(ctx)
 	db, err := tx.DB()
 	if err != nil {
 		return nil, err
 	}
+	return db, nil
+}
+
+func (mr *MigrationRunner) runGoose(ctx context.Context, action string, fn func(*sql.DB) error) error {
+	gooseMu.Lock()
+	defer gooseMu.Unlock()
+
 	if mr.migrationFS != nil {
 		goose.SetBaseFS(mr.migrationFS)
 	}
 
-	return db, nil
+	db, err := mr.setupGoose(ctx)
+	if err != nil {
+		return err
+	}
+	if err := fn(db); err != nil {
+		slog.Error("database migration failed", "action", action, "error", err)
+		return err
+	}
+	return nil
 }
 
 func (mr *MigrationRunner) Up(ctx context.Context) error {
@@ -113,43 +139,25 @@ func (mr *MigrationRunner) Up(ctx context.Context) error {
 		return nil
 	}
 
-	db, err := mr.setupGoose(ctx)
-	if err != nil {
-		return err
-	}
-	if err := goose.UpContext(ctx, db, baseDir); err != nil {
-		slog.Error(fmt.Sprintf("Database %s failed", "up"), "error", err)
-		return err
-	}
-	return nil
+	return mr.runGoose(ctx, "up", func(db *sql.DB) error {
+		return goose.UpContext(ctx, db, baseDir)
+	})
 }
 
 func (mr *MigrationRunner) Down(ctx context.Context) error {
 	if mr.migrationFS == nil {
 		return nil
 	}
-	db, err := mr.setupGoose(ctx)
-	if err != nil {
-		return err
-	}
-	if err := goose.DownContext(ctx, db, baseDir); err != nil {
-		slog.Error(fmt.Sprintf("Database %s failed", "up"), "error", err)
-		return err
-	}
-	return nil
+	return mr.runGoose(ctx, "down", func(db *sql.DB) error {
+		return goose.DownContext(ctx, db, baseDir)
+	})
 }
 
 func (mr *MigrationRunner) Status(ctx context.Context) error {
 	if mr.migrationFS == nil {
 		return nil
 	}
-	db, err := mr.setupGoose(ctx)
-	if err != nil {
-		return err
-	}
-	if err := goose.StatusContext(ctx, db, baseDir); err != nil {
-		slog.Error(fmt.Sprintf("Database %s failed", "up"), "error", err)
-		return err
-	}
-	return nil
+	return mr.runGoose(ctx, "status", func(db *sql.DB) error {
+		return goose.StatusContext(ctx, db, baseDir)
+	})
 }
