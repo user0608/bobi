@@ -6,12 +6,18 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
 	"go.uber.org/fx"
 )
+
+type HttpApiConfig struct {
+	Address string `mapstructure:"address"`
+	LogFmt  string `mapstructure:"log_fmt"`
+}
 
 func buildMiddlewares(route Route) []echo.MiddlewareFunc {
 	var before []echo.MiddlewareFunc
@@ -34,6 +40,7 @@ func buildMiddlewares(route Route) []echo.MiddlewareFunc {
 
 func NewServer(routes []Route) *echo.Echo {
 	server := echo.New()
+
 	server.Use(middleware.RequestLogger())
 	server.Use(middleware.Recover())
 	server.Use(middleware.CORS("*"))
@@ -50,21 +57,24 @@ var Module = fx.Module("http-server",
 	fx.Provide(
 		fx.Annotate(
 			NewServer,
-			fx.ParamTags(RouteTag),
+			fx.ParamTags(RouteTag, ""),
 		),
 	),
-	fx.Invoke(StartWebServer),
 )
-
-type HttpApiConfig struct {
-	Address string `mapstructure:"address"`
-}
 
 func StartWebServer(
 	lc fx.Lifecycle,
 	e *echo.Echo,
 	c HttpApiConfig,
 ) {
+
+	switch c.LogFmt {
+	case "json":
+		e.Logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	default:
+		e.Logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
+	}
+
 	server := http.Server{
 		Addr:    c.Address,
 		Handler: e,

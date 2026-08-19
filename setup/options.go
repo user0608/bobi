@@ -20,6 +20,14 @@ func WithMigration(_fs fs.FS) Option {
 	}
 }
 
+func WithSPA_UI(_fs fs.FS) Option {
+	return func(s *Service) {
+		if _fs != nil {
+			s.spaFS = _fs
+		}
+	}
+}
+
 func WithSkipConfig() Option {
 	return func(s *Service) {
 		s.skipConfigLoad = true

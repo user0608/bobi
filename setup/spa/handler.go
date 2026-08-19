@@ -17,6 +17,8 @@ type SPAHandler struct {
 	prefix  string
 }
 
+var _ httpserver.Route = (*SPAHandler)(nil)
+
 func NewSPAHandler(content fs.FS, prefix string) *SPAHandler {
 	prefix = normalizePrefix(prefix)
 	return &SPAHandler{content: content, prefix: prefix}
@@ -27,32 +29,38 @@ func (s *SPAHandler) GetPath() string {
 	if s.prefix == "/" {
 		return "/*"
 	}
-	return s.prefix + "*"
+	return strings.TrimSuffix(s.prefix, "/") + "*"
 }
 
 // HandleRequest implements [httpserver.Route].
 func (s *SPAHandler) HandleRequest(c *echo.Context) error {
 	if s.content == nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "SPA filesystem is not configured")
+		return echo.NewHTTPError(http.StatusInternalServerError, "filesystem is not configured")
 	}
 
 	requestedPath, valid := spaPath(c.Request().URL.Path, s.prefix)
-	if valid {
-		info, err := fs.Stat(s.content, requestedPath)
-		if err == nil {
-			if !info.IsDir() {
-				return c.FileFS(requestedPath, s.content)
-			}
-		} else if !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
+	if !valid {
+		return echo.ErrNotFound
 	}
 
-	if _, err := fs.Stat(s.content, "index.html"); err != nil {
+	info, err := fs.Stat(s.content, requestedPath)
+	if err == nil {
+		if !info.IsDir() {
+			return c.FileFS(requestedPath, s.content)
+		}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+
+	indexInfo, err := fs.Stat(s.content, "index.html")
+	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return echo.NewHTTPError(http.StatusInternalServerError, "SPA index.html is not available")
+			return echo.NewHTTPError(http.StatusInternalServerError, "index.html is not available")
 		}
 		return err
+	}
+	if indexInfo.IsDir() {
+		return echo.NewHTTPError(http.StatusInternalServerError, "index.html is not available")
 	}
 
 	return c.FileFS("index.html", s.content)

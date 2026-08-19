@@ -10,6 +10,7 @@ import (
 	"github.com/user0608/bobi/httpserver"
 	"github.com/user0608/bobi/jwtkeys"
 	"github.com/user0608/bobi/setup/migrations"
+	"github.com/user0608/bobi/setup/spa"
 	"go.uber.org/fx"
 )
 
@@ -40,12 +41,23 @@ func (s *Service) Run(opts ...fx.Option) {
 	}
 
 	var options = s.baseOptions()
+
 	options = append(options, fx.Provide(s.jwtKeysConfig, jwtkeys.NewJwtKeyStore))
 	options = append(options, opts...)
 	options = append(options,
 		fx.Provide(s.httpServerConfig),
 		httpserver.Module,
 	)
+
+	if s.spaFS != nil {
+		options = append(options, fx.Provide(
+			httpserver.AsRoute(func() *spa.SPAHandler {
+				return spa.NewSPAHandler(s.spaFS, "/")
+			}),
+		))
+	}
+
+	options = append(options, fx.Invoke(httpserver.StartWebServer))
 
 	fx.New(options...).Run()
 }
