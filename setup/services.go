@@ -9,6 +9,7 @@ import (
 	"github.com/user0608/bobi/connection"
 	"github.com/user0608/bobi/httpserver"
 	"github.com/user0608/bobi/jwtkeys"
+	"github.com/user0608/bobi/setup/appenv"
 	"github.com/user0608/bobi/setup/migrations"
 	"github.com/user0608/bobi/setup/spa"
 	"go.uber.org/fx"
@@ -63,8 +64,9 @@ func (s *Service) Run(opts ...fx.Option) {
 }
 
 func (s *Service) baseOptions() []fx.Option {
-
-	var options = []fx.Option{}
+	var options = []fx.Option{
+		appenv.Module,
+	}
 	if !s.skipConfigLoad {
 		options = append(options, fx.Provide(configs.LoadConfigFromCLIArgs))
 	}
