@@ -18,7 +18,7 @@ type DatabaseConfig struct {
 	Host     string         `mapstructure:"host"`
 	Port     uint           `mapstructure:"port"`
 	Database string         `mapstructure:"database"`
-	Username string         `mapstructure:"username"`
+	User     string         `mapstructure:"user"`
 	Password string         `mapstructure:"password"`
 	LogLevel string         `mapstructure:"log_level"`
 }

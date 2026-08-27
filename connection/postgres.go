@@ -11,7 +11,7 @@ func postgresDialector(config DatabaseConfig) gorm.Dialector {
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%d sslmode=disable",
 		config.Host,
-		config.Username,
+		config.User,
 		config.Password,
 		config.Database,
 		config.Port,

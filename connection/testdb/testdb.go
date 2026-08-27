@@ -120,7 +120,7 @@ func newStorageFromContainer(ctx context.Context, container *tcpostgres.Postgres
 		Driver:   connection.DatabaseDriverPostgres,
 		Host:     host,
 		Port:     uint(port),
-		Username: testUsername,
+		User:     testUsername,
 		Database: testDatabaseName,
 		Password: testPassword,
 		LogLevel: testLogLevel,
