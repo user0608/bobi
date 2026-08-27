@@ -14,6 +14,8 @@ persistence, configuration, errors, common types, and JWT key management.
 - `jwtkeys`: JWT RSA key pair generation and loading.
 - `setup`: application setup and service configuration.
 - `setup/migrations`: database migration execution and management.
+- `setup/spa`: static assets with SPA route fallback.
+- `setup/web`: static web asset serving.
 - `types`: helper types for dates, times, UUIDs, and arrays.
 
 ## Desarrollo

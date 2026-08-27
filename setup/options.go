@@ -28,6 +28,14 @@ func WithSPA_UI(_fs fs.FS) Option {
 	}
 }
 
+func WithWeb_UI(_fs fs.FS) Option {
+	return func(s *Service) {
+		if _fs != nil {
+			s.webFS = _fs
+		}
+	}
+}
+
 func WithSkipConfig() Option {
 	return func(s *Service) {
 		s.skipConfigLoad = true

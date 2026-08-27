@@ -2,6 +2,7 @@ package setup
 
 import (
 	"io/fs"
+	"log/slog"
 	"os"
 
 	"github.com/spf13/viper"
@@ -12,6 +13,7 @@ import (
 	"github.com/user0608/bobi/setup/appenv"
 	"github.com/user0608/bobi/setup/migrations"
 	"github.com/user0608/bobi/setup/spa"
+	"github.com/user0608/bobi/setup/web"
 	"go.uber.org/fx"
 )
 
@@ -19,6 +21,7 @@ type Service struct {
 	version          string
 	migrationFS      fs.FS
 	spaFS            fs.FS // ReactJS
+	webFS            fs.FS
 	skipConfigLoad   bool
 	skipDBConnection bool
 }
@@ -50,12 +53,24 @@ func (s *Service) Run(opts ...fx.Option) {
 		httpserver.Module,
 	)
 
-	if s.spaFS != nil {
+	if s.spaFS != nil && s.webFS == nil {
 		options = append(options, fx.Provide(
 			httpserver.AsRoute(func() *spa.SPAHandler {
 				return spa.NewSPAHandler(s.spaFS, "/")
 			}),
 		))
+	}
+
+	if s.webFS != nil && s.spaFS == nil {
+		options = append(options, fx.Provide(
+			httpserver.AsRoute(func() *web.WebHandler {
+				return web.NewWebHandler(s.webFS, "/")
+			}),
+		))
+	}
+
+	if s.spaFS != nil && s.webFS != nil {
+		slog.Warn("both SPA and web filesystems are configured; their root routes may conflict")
 	}
 
 	options = append(options, fx.Invoke(httpserver.StartWebServer))
