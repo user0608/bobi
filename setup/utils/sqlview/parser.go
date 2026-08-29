@@ -7,19 +7,19 @@ import (
 	"unicode/utf8"
 )
 
-func parseViewNames(source []byte) ([]string, error) {
+func parseViews(source []byte) ([]View, error) {
 	tokens, err := lexSQL(source)
 	if err != nil {
 		return nil, err
 	}
 
-	names := []string{}
+	views := []View{}
 	for index := 0; index < len(tokens); index++ {
 		if !isKeyword(tokens[index], "CREATE") {
 			continue
 		}
 
-		name, next, matched, err := parseCreateView(tokens, index)
+		view, next, matched, err := parseCreateView(tokens, index)
 		if err != nil {
 			return nil, err
 		}
@@ -27,24 +27,26 @@ func parseViewNames(source []byte) ([]string, error) {
 			continue
 		}
 
-		names = append(names, name)
+		views = append(views, view)
 		index = next - 1
 	}
 
-	return names, nil
+	return views, nil
 }
 
-func parseCreateView(tokens []token, create int) (string, int, bool, error) {
+func parseCreateView(tokens []token, create int) (View, int, bool, error) {
 	index := create + 1
 
 	if keywordAt(tokens, index, "OR") {
 		if !keywordAt(tokens, index+1, "REPLACE") {
-			return "", create + 1, false, nil
+			return View{}, create + 1, false, nil
 		}
 		index += 2
 	}
 
+	materialized := false
 	if keywordAt(tokens, index, "MATERIALIZED") {
+		materialized = true
 		index++
 	}
 	if keywordAt(tokens, index, "TEMP") || keywordAt(tokens, index, "TEMPORARY") {
@@ -54,39 +56,39 @@ func parseCreateView(tokens []token, create int) (string, int, bool, error) {
 		index++
 	}
 	if !keywordAt(tokens, index, "VIEW") {
-		return "", create + 1, false, nil
+		return View{}, create + 1, false, nil
 	}
 	index++
 
 	if keywordAt(tokens, index, "IF") {
 		if !keywordAt(tokens, index+1, "NOT") || !keywordAt(tokens, index+2, "EXISTS") {
-			return "", 0, true, parseError(tokens, index, "expected IF NOT EXISTS")
+			return View{}, 0, true, parseError(tokens, index, "expected IF NOT EXISTS")
 		}
 		index += 3
 	}
 
 	name, index, ok, err := parseIdentifier(tokens, index)
 	if err != nil {
-		return "", 0, true, err
+		return View{}, 0, true, err
 	}
 	if !ok {
-		return "", 0, true, parseError(tokens, index, "expected view name")
+		return View{}, 0, true, parseError(tokens, index, "expected view name")
 	}
 
 	if tokenAt(tokens, index, ".") {
 		index++
 		viewName, next, ok, err := parseIdentifier(tokens, index)
 		if err != nil {
-			return "", 0, true, err
+			return View{}, 0, true, err
 		}
 		if !ok {
-			return "", 0, true, parseError(tokens, index, "expected view name after schema")
+			return View{}, 0, true, parseError(tokens, index, "expected view name after schema")
 		}
 		name += "." + viewName
 		index = next
 	}
 
-	return name, index, true, nil
+	return View{Name: name, Materialized: materialized}, index, true, nil
 }
 
 func parseIdentifier(tokens []token, index int) (string, int, bool, error) {

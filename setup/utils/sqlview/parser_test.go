@@ -6,22 +6,22 @@ import (
 	"testing"
 )
 
-func TestParseViewNamesAcceptsWhitespaceAndKeywordCase(t *testing.T) {
+func TestParseViewsAcceptsWhitespaceAndKeywordCase(t *testing.T) {
 	t.Parallel()
 
 	source := []byte("cReAtE\nOr\tRePlAcE\rTeMp\fReCuRsIvE vIeW\vpublic.example AS SELECT 1")
-	got, err := parseViewNames(source)
+	got, err := parseViews(source)
 	if err != nil {
-		t.Fatalf("parseViewNames() error = %v", err)
+		t.Fatalf("parseViews() error = %v", err)
 	}
 
-	want := []string{"public.example"}
+	want := []View{{Name: "public.example"}}
 	if !slices.Equal(got, want) {
-		t.Fatalf("parseViewNames() = %#v, want %#v", got, want)
+		t.Fatalf("parseViews() = %#v, want %#v", got, want)
 	}
 }
 
-func TestParseViewNamesIgnoresOtherCreateStatements(t *testing.T) {
+func TestParseViewsIgnoresOtherCreateStatements(t *testing.T) {
 	t.Parallel()
 
 	source := []byte(`
@@ -30,16 +30,16 @@ CREATE INDEX example_idx ON example (id);
 CREATE OR TABLE invalid_but_unrelated;
 CREATE FUNCTION example() RETURNS void AS 'SELECT 1';
 `)
-	got, err := parseViewNames(source)
+	got, err := parseViews(source)
 	if err != nil {
-		t.Fatalf("parseViewNames() error = %v", err)
+		t.Fatalf("parseViews() error = %v", err)
 	}
 	if len(got) != 0 {
-		t.Fatalf("parseViewNames() = %#v, want empty slice", got)
+		t.Fatalf("parseViews() = %#v, want empty slice", got)
 	}
 }
 
-func TestParseViewNamesPostgreSQLIdentifiers(t *testing.T) {
+func TestParseViewsPostgreSQLIdentifiers(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -63,19 +63,19 @@ func TestParseViewNamesPostgreSQLIdentifiers(t *testing.T) {
 			t.Parallel()
 
 			source := []byte("CREATE VIEW " + tt.identifier + " AS SELECT 1;")
-			got, err := parseViewNames(source)
+			got, err := parseViews(source)
 			if err != nil {
-				t.Fatalf("parseViewNames() error = %v", err)
+				t.Fatalf("parseViews() error = %v", err)
 			}
-			want := []string{tt.identifier}
+			want := []View{{Name: tt.identifier}}
 			if !slices.Equal(got, want) {
-				t.Fatalf("parseViewNames() = %#v, want %#v", got, want)
+				t.Fatalf("parseViews() = %#v, want %#v", got, want)
 			}
 		})
 	}
 }
 
-func TestParseViewNamesSQLiteContextualIdentifiers(t *testing.T) {
+func TestParseViewsSQLiteContextualIdentifiers(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -92,35 +92,37 @@ func TestParseViewNamesSQLiteContextualIdentifiers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := parseViewNames([]byte("CREATE VIEW " + tt.identifier + " AS SELECT 1;"))
+			got, err := parseViews([]byte("CREATE VIEW " + tt.identifier + " AS SELECT 1;"))
 			if err != nil {
-				t.Fatalf("parseViewNames() error = %v", err)
+				t.Fatalf("parseViews() error = %v", err)
 			}
 
 			want := tt.identifier
 			if after, ok := strings.CutPrefix(want, "IF NOT EXISTS "); ok {
 				want = after
 			}
-			if !slices.Equal(got, []string{want}) {
-				t.Fatalf("parseViewNames() = %#v, want %#v", got, []string{want})
+			views := []View{{Name: want}}
+			if !slices.Equal(got, views) {
+				t.Fatalf("parseViews() = %#v, want %#v", got, views)
 			}
 		})
 	}
 }
 
-func TestParseViewNamesSkipsUTF8BOM(t *testing.T) {
+func TestParseViewsSkipsUTF8BOM(t *testing.T) {
 	t.Parallel()
 
-	got, err := parseViewNames([]byte("\xef\xbb\xbfCREATE VIEW bom_view AS SELECT 1;"))
+	got, err := parseViews([]byte("\xef\xbb\xbfCREATE VIEW bom_view AS SELECT 1;"))
 	if err != nil {
-		t.Fatalf("parseViewNames() error = %v", err)
+		t.Fatalf("parseViews() error = %v", err)
 	}
-	if !slices.Equal(got, []string{"bom_view"}) {
-		t.Fatalf("parseViewNames() = %#v, want %#v", got, []string{"bom_view"})
+	want := []View{{Name: "bom_view"}}
+	if !slices.Equal(got, want) {
+		t.Fatalf("parseViews() = %#v, want %#v", got, want)
 	}
 }
 
-func TestParseViewNamesErrors(t *testing.T) {
+func TestParseViewsErrors(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -241,12 +243,12 @@ func TestParseViewNamesErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := parseViewNames(tt.source)
+			got, err := parseViews(tt.source)
 			if err == nil {
-				t.Fatalf("parseViewNames() = %#v, nil; want error", got)
+				t.Fatalf("parseViews() = %#v, nil; want error", got)
 			}
 			if !strings.Contains(err.Error(), tt.wantMessage) {
-				t.Fatalf("parseViewNames() error = %q, want it to contain %q", err, tt.wantMessage)
+				t.Fatalf("parseViews() error = %q, want it to contain %q", err, tt.wantMessage)
 			}
 		})
 	}

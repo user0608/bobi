@@ -140,7 +140,9 @@ func (mr *MigrationRunner) Up(ctx context.Context) error {
 	}
 
 	return mr.runGoose(ctx, "up", func(db *sql.DB) error {
-		return goose.UpContext(ctx, db, baseDir)
+		return mr.refreshViews(ctx, db, func() error {
+			return goose.UpContext(ctx, db, baseDir)
+		})
 	})
 }
 

@@ -12,7 +12,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func TestViewNames(t *testing.T) {
+func TestViews(t *testing.T) {
 	t.Parallel()
 
 	viewFS := fstest.MapFS{
@@ -41,34 +41,34 @@ CREATE VIEW users AS SELECT 2;
 		"definitions/ignored.txt": &fstest.MapFile{Data: []byte("CREATE VIEW ignored AS SELECT 1;")},
 	}
 
-	got, err := ViewNames(viewFS)
+	got, err := Views(viewFS)
 	if err != nil {
-		t.Fatalf("ViewNames() error = %v", err)
+		t.Fatalf("Views() error = %v", err)
 	}
 
-	want := []string{
-		"users",
-		"main.active_users",
-		"temp_users",
-		`temp."Recent Users"`,
-		"public.active_users",
-		"reporting.numbers",
-		`analytics."Monthly Sales"`,
-		`"reporting"."escaped ""name"""`,
-		`U&"d\0061ta"`,
-		`U&"sch!0065ma" UESCAPE '!'.U&"v!0069ew" UESCAPE '!'`,
-		"café",
-		"[main].[order details]",
-		"`audit`.`changes`",
-		"'legacy sqlite name'",
-		"abort",
+	want := []View{
+		{Name: "users"},
+		{Name: "main.active_users"},
+		{Name: "temp_users"},
+		{Name: `temp."Recent Users"`},
+		{Name: "public.active_users"},
+		{Name: "reporting.numbers"},
+		{Name: `analytics."Monthly Sales"`, Materialized: true},
+		{Name: `"reporting"."escaped ""name"""`},
+		{Name: `U&"d\0061ta"`},
+		{Name: `U&"sch!0065ma" UESCAPE '!'.U&"v!0069ew" UESCAPE '!'`},
+		{Name: "café"},
+		{Name: "[main].[order details]"},
+		{Name: "`audit`.`changes`"},
+		{Name: "'legacy sqlite name'"},
+		{Name: "abort"},
 	}
 	if !slices.Equal(got, want) {
-		t.Fatalf("ViewNames() = %#v, want %#v", got, want)
+		t.Fatalf("Views() = %#v, want %#v", got, want)
 	}
 }
 
-func TestViewNamesIgnoresNonExecutableText(t *testing.T) {
+func TestViewsIgnoresNonExecutableText(t *testing.T) {
 	t.Parallel()
 
 	viewFS := fstest.MapFS{
@@ -97,33 +97,52 @@ CREATE VIEW visible_view AS SELECT 1;
 `)},
 	}
 
-	got, err := ViewNames(viewFS)
+	got, err := Views(viewFS)
 	if err != nil {
-		t.Fatalf("ViewNames() error = %v", err)
+		t.Fatalf("Views() error = %v", err)
 	}
 
-	want := []string{"visible_view"}
+	want := []View{{Name: "visible_view"}}
 	if !slices.Equal(got, want) {
-		t.Fatalf("ViewNames() = %#v, want %#v", got, want)
+		t.Fatalf("Views() = %#v, want %#v", got, want)
 	}
 }
 
-func TestViewNamesEmptyFilesystem(t *testing.T) {
+func TestViewsEmptyFilesystem(t *testing.T) {
 	t.Parallel()
 
-	got, err := ViewNames(fstest.MapFS{})
+	got, err := Views(fstest.MapFS{})
 	if err != nil {
-		t.Fatalf("ViewNames() error = %v", err)
+		t.Fatalf("Views() error = %v", err)
 	}
 	if got == nil {
-		t.Fatal("ViewNames() returned a nil slice")
+		t.Fatal("Views() returned a nil slice")
 	}
 	if len(got) != 0 {
-		t.Fatalf("ViewNames() = %#v, want empty slice", got)
+		t.Fatalf("Views() = %#v, want empty slice", got)
 	}
 }
 
-func TestViewNamesErrors(t *testing.T) {
+func TestViewsRejectsConflictingKinds(t *testing.T) {
+	t.Parallel()
+
+	viewFS := fstest.MapFS{
+		"01_regular.sql": &fstest.MapFile{Data: []byte("CREATE VIEW reports AS SELECT 1;")},
+		"02_materialized.sql": &fstest.MapFile{
+			Data: []byte("CREATE MATERIALIZED VIEW reports AS SELECT 1;"),
+		},
+	}
+
+	got, err := Views(viewFS)
+	if err == nil {
+		t.Fatalf("Views() = %#v, nil; want conflicting kind error", got)
+	}
+	if !strings.Contains(err.Error(), "both regular and materialized") {
+		t.Fatalf("Views() error = %q, want conflicting kind error", err)
+	}
+}
+
+func TestViewsErrors(t *testing.T) {
 	t.Parallel()
 
 	sentinel := errors.New("filesystem failure")
@@ -168,21 +187,21 @@ func TestViewNamesErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := ViewNames(tt.viewFS)
+			got, err := Views(tt.viewFS)
 			if err == nil {
-				t.Fatalf("ViewNames() = %#v, nil; want error", got)
+				t.Fatalf("Views() = %#v, nil; want error", got)
 			}
 			if !strings.Contains(err.Error(), tt.wantMessage) {
-				t.Fatalf("ViewNames() error = %q, want it to contain %q", err, tt.wantMessage)
+				t.Fatalf("Views() error = %q, want it to contain %q", err, tt.wantMessage)
 			}
 			if tt.wantCause != nil && !errors.Is(err, tt.wantCause) {
-				t.Fatalf("ViewNames() error = %v, want wrapped error %v", err, tt.wantCause)
+				t.Fatalf("Views() error = %v, want wrapped error %v", err, tt.wantCause)
 			}
 		})
 	}
 }
 
-func TestViewNamesReturnsEverySQLiteIdentifierForm(t *testing.T) {
+func TestViewsReturnsEverySQLiteIdentifierForm(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -210,12 +229,13 @@ func TestViewNamesReturnsEverySQLiteIdentifierForm(t *testing.T) {
 			viewFS := fstest.MapFS{
 				"schema.sql": &fstest.MapFile{Data: []byte(statement)},
 			}
-			names, err := ViewNames(viewFS)
+			views, err := Views(viewFS)
 			if err != nil {
-				t.Fatalf("ViewNames() error = %v", err)
+				t.Fatalf("Views() error = %v", err)
 			}
-			if !slices.Equal(names, []string{tt.identifier}) {
-				t.Fatalf("ViewNames() = %#v, want %#v", names, []string{tt.identifier})
+			want := []View{{Name: tt.identifier}}
+			if !slices.Equal(views, want) {
+				t.Fatalf("Views() = %#v, want %#v", views, want)
 			}
 
 			db, err := sql.Open("sqlite", ":memory:")
