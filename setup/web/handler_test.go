@@ -14,12 +14,14 @@ import (
 )
 
 func TestWebHandlerServesFiles(t *testing.T) {
-	server := httpserver.NewServer([]httpserver.Route{
-		NewWebHandler(fstest.MapFS{
-			"index.html":    &fstest.MapFile{Data: []byte("home")},
-			"about.html":    &fstest.MapFile{Data: []byte("about")},
-			"assets/app.js": &fstest.MapFile{Data: []byte("console.log('app')")},
-		}, "/"),
+	server := httpserver.NewServer(httpserver.ServerParams{
+		Routes: []httpserver.Route{
+			NewWebHandler(fstest.MapFS{
+				"index.html":    &fstest.MapFile{Data: []byte("home")},
+				"about.html":    &fstest.MapFile{Data: []byte("about")},
+				"assets/app.js": &fstest.MapFile{Data: []byte("console.log('app')")},
+			}, "/"),
+		},
 	})
 
 	tests := []struct {
@@ -69,7 +71,7 @@ func TestWebHandlerSupportsPrefixes(t *testing.T) {
 				"index.html": &fstest.MapFile{Data: []byte("home")},
 				"about.html": &fstest.MapFile{Data: []byte("about")},
 			}, tt.prefix)
-			server := httpserver.NewServer([]httpserver.Route{handler})
+			server := httpserver.NewServer(httpserver.ServerParams{Routes: []httpserver.Route{handler}})
 
 			require.Equal(t, tt.routePath, handler.GetPath())
 			recorder := httptest.NewRecorder()
@@ -81,11 +83,13 @@ func TestWebHandlerSupportsPrefixes(t *testing.T) {
 }
 
 func TestWebHandlerRejectsInvalidPaths(t *testing.T) {
-	server := httpserver.NewServer([]httpserver.Route{
-		NewWebHandler(fstest.MapFS{
-			"index.html":    &fstest.MapFile{Data: []byte("home")},
-			"assets/app.js": &fstest.MapFile{Data: []byte("asset")},
-		}, "/app/"),
+	server := httpserver.NewServer(httpserver.ServerParams{
+		Routes: []httpserver.Route{
+			NewWebHandler(fstest.MapFS{
+				"index.html":    &fstest.MapFile{Data: []byte("home")},
+				"assets/app.js": &fstest.MapFile{Data: []byte("asset")},
+			}, "/app/"),
+		},
 	})
 
 	for _, requestPath := range []string{"/", "/application/app.js", "/app/../secret", "/app/assets\\app.js", "/app/assets/missing.js"} {
@@ -100,7 +104,9 @@ func TestWebHandlerRejectsInvalidPaths(t *testing.T) {
 }
 
 func TestWebHandlerReturnsServerErrorWithoutFilesystem(t *testing.T) {
-	server := httpserver.NewServer([]httpserver.Route{NewWebHandler(nil, "/")})
+	server := httpserver.NewServer(httpserver.ServerParams{
+		Routes: []httpserver.Route{NewWebHandler(nil, "/")},
+	})
 	recorder := httptest.NewRecorder()
 	server.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
 

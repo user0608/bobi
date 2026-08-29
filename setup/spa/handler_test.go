@@ -14,12 +14,14 @@ import (
 )
 
 func TestSPAHandlerServesAssetsAndReactRoutes(t *testing.T) {
-	server := httpserver.NewServer([]httpserver.Route{
-		NewSPAHandler(fstest.MapFS{
-			"index.html":    &fstest.MapFile{Data: []byte("<div id=app></div>")},
-			"assets/app.js": &fstest.MapFile{Data: []byte("console.log('app')")},
-			"assets/docs":   &fstest.MapFile{Mode: fs.ModeDir},
-		}, "/_/"),
+	server := httpserver.NewServer(httpserver.ServerParams{
+		Routes: []httpserver.Route{
+			NewSPAHandler(fstest.MapFS{
+				"index.html":    &fstest.MapFile{Data: []byte("<div id=app></div>")},
+				"assets/app.js": &fstest.MapFile{Data: []byte("console.log('app')")},
+				"assets/docs":   &fstest.MapFile{Mode: fs.ModeDir},
+			}, "/_/"),
+		},
 	})
 
 	tests := []struct {
@@ -94,8 +96,10 @@ func TestSPAHandlerReturnsServerErrorWithoutIndex(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httpserver.NewServer([]httpserver.Route{
-				NewSPAHandler(tt.content, "/_/"),
+			server := httpserver.NewServer(httpserver.ServerParams{
+				Routes: []httpserver.Route{
+					NewSPAHandler(tt.content, "/_/"),
+				},
 			})
 			request := httptest.NewRequest(http.MethodGet, "/_/dashboard", nil)
 			recorder := httptest.NewRecorder()
@@ -109,8 +113,10 @@ func TestSPAHandlerReturnsServerErrorWithoutIndex(t *testing.T) {
 }
 
 func TestSPAHandlerReturnsServerErrorWithoutFilesystem(t *testing.T) {
-	server := httpserver.NewServer([]httpserver.Route{
-		NewSPAHandler(nil, "/_/"),
+	server := httpserver.NewServer(httpserver.ServerParams{
+		Routes: []httpserver.Route{
+			NewSPAHandler(nil, "/_/"),
+		},
 	})
 
 	request := httptest.NewRequest(http.MethodGet, "/_/", nil)
@@ -122,10 +128,12 @@ func TestSPAHandlerReturnsServerErrorWithoutFilesystem(t *testing.T) {
 }
 
 func TestSPAHandlerDoesNotCaptureOutsidePrefix(t *testing.T) {
-	server := httpserver.NewServer([]httpserver.Route{
-		NewSPAHandler(fstest.MapFS{
-			"index.html": &fstest.MapFile{Data: []byte("<div id=app></div>")},
-		}, "/_/"),
+	server := httpserver.NewServer(httpserver.ServerParams{
+		Routes: []httpserver.Route{
+			NewSPAHandler(fstest.MapFS{
+				"index.html": &fstest.MapFile{Data: []byte("<div id=app></div>")},
+			}, "/_/"),
+		},
 	})
 
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -158,7 +166,9 @@ func TestSPAHandlerSupportsDifferentPrefixes(t *testing.T) {
 			handler := NewSPAHandler(fstest.MapFS{
 				"index.html": &fstest.MapFile{Data: []byte("<div id=app></div>")},
 			}, tt.prefix)
-			server := httpserver.NewServer([]httpserver.Route{handler})
+			server := httpserver.NewServer(httpserver.ServerParams{
+				Routes: []httpserver.Route{handler},
+			})
 
 			require.Equal(t, tt.routePath, handler.GetPath())
 
@@ -173,10 +183,12 @@ func TestSPAHandlerSupportsDifferentPrefixes(t *testing.T) {
 }
 
 func TestSPAHandlerPrefixBoundary(t *testing.T) {
-	server := httpserver.NewServer([]httpserver.Route{
-		NewSPAHandler(fstest.MapFS{
-			"index.html": &fstest.MapFile{Data: []byte("<div id=app></div>")},
-		}, "/app/"),
+	server := httpserver.NewServer(httpserver.ServerParams{
+		Routes: []httpserver.Route{
+			NewSPAHandler(fstest.MapFS{
+				"index.html": &fstest.MapFile{Data: []byte("<div id=app></div>")},
+			}, "/app/"),
+		},
 	})
 
 	tests := []struct {
@@ -208,11 +220,13 @@ func TestSPAHandlerPrefixBoundary(t *testing.T) {
 }
 
 func TestSPAHandlerIgnoresQueryString(t *testing.T) {
-	server := httpserver.NewServer([]httpserver.Route{
-		NewSPAHandler(fstest.MapFS{
-			"index.html":    &fstest.MapFile{Data: []byte("index")},
-			"assets/app.js": &fstest.MapFile{Data: []byte("asset")},
-		}, "/app/"),
+	server := httpserver.NewServer(httpserver.ServerParams{
+		Routes: []httpserver.Route{
+			NewSPAHandler(fstest.MapFS{
+				"index.html":    &fstest.MapFile{Data: []byte("index")},
+				"assets/app.js": &fstest.MapFile{Data: []byte("asset")},
+			}, "/app/"),
+		},
 	})
 	request := httptest.NewRequest(http.MethodGet, "/app/assets/app.js?v=123", nil)
 	recorder := httptest.NewRecorder()
@@ -249,22 +263,24 @@ func TestSPAHandlerPropagatesFilesystemErrors(t *testing.T) {
 }
 
 func TestSPAHandlerDoesNotCaptureAPIRoutes(t *testing.T) {
-	server := httpserver.NewServer([]httpserver.Route{
-		NewSPAHandler(fstest.MapFS{
-			"index.html": &fstest.MapFile{Data: []byte("<div id=app></div>")},
-		}, "/_/"),
-		&httpserver.PublicHandler{
-			Method: http.MethodGet,
-			Path:   "/api/health",
-			Handler: func(c *echo.Context) error {
-				return c.String(http.StatusOK, "api is healthy")
+	server := httpserver.NewServer(httpserver.ServerParams{
+		Routes: []httpserver.Route{
+			NewSPAHandler(fstest.MapFS{
+				"index.html": &fstest.MapFile{Data: []byte("<div id=app></div>")},
+			}, "/_/"),
+			&httpserver.PublicHandler{
+				Method: http.MethodGet,
+				Path:   "/api/health",
+				Handler: func(c *echo.Context) error {
+					return c.String(http.StatusOK, "api is healthy")
+				},
 			},
-		},
-		&httpserver.PublicHandler{
-			Method: http.MethodPost,
-			Path:   "/api/users",
-			Handler: func(c *echo.Context) error {
-				return c.String(http.StatusCreated, "user created")
+			&httpserver.PublicHandler{
+				Method: http.MethodPost,
+				Path:   "/api/users",
+				Handler: func(c *echo.Context) error {
+					return c.String(http.StatusCreated, "user created")
+				},
 			},
 		},
 	})

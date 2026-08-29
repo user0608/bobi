@@ -31,7 +31,9 @@ func TestPublicHandlerDelegatesToHandler(t *testing.T) {
 			return c.String(http.StatusNoContent, "")
 		},
 	}
-	server := httpserver.NewServer([]httpserver.Route{handler})
+	server := httpserver.NewServer(httpserver.ServerParams{
+		Routes: []httpserver.Route{handler},
+	})
 
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
 	recorder := httptest.NewRecorder()
@@ -42,8 +44,10 @@ func TestPublicHandlerDelegatesToHandler(t *testing.T) {
 }
 
 func TestPublicHandlerWithoutHandlerReturnsServerError(t *testing.T) {
-	server := httpserver.NewServer([]httpserver.Route{
-		&httpserver.PublicHandler{Path: "/health"},
+	server := httpserver.NewServer(httpserver.ServerParams{
+		Routes: []httpserver.Route{
+			&httpserver.PublicHandler{Path: "/health"},
+		},
 	})
 
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -76,7 +80,9 @@ func TestNewServerRegistersHTTPMethods(t *testing.T) {
 			},
 		})
 	}
-	server := httpserver.NewServer(routes)
+	server := httpserver.NewServer(httpserver.ServerParams{
+		Routes: routes,
+	})
 
 	for _, method := range methods {
 		t.Run(method, func(t *testing.T) {
@@ -89,43 +95,14 @@ func TestNewServerRegistersHTTPMethods(t *testing.T) {
 	}
 }
 
-func TestNewServerRunsRouteMiddlewaresInOrder(t *testing.T) {
-	var calls []string
-	appendCall := func(name string) echo.MiddlewareFunc {
-		return func(next echo.HandlerFunc) echo.HandlerFunc {
-			return func(c *echo.Context) error {
-				calls = append(calls, name)
-				return next(c)
-			}
-		}
-	}
-
-	server := httpserver.NewServer([]httpserver.Route{
-		&httpserver.PublicHandler{
-			Path:              "/ordered",
-			BeforeMiddlewares: []echo.MiddlewareFunc{appendCall("before")},
-			Middlewares:       []echo.MiddlewareFunc{appendCall("after")},
-			Handler: func(c *echo.Context) error {
-				calls = append(calls, "handler")
-				return c.NoContent(http.StatusNoContent)
-			},
-		},
-	})
-
-	request := httptest.NewRequest(http.MethodGet, "/ordered", nil)
-	recorder := httptest.NewRecorder()
-	server.ServeHTTP(recorder, request)
-
-	require.Equal(t, http.StatusNoContent, recorder.Code)
-	require.Equal(t, []string{"before", "after", "handler"}, calls)
-}
-
 func TestNewServerConfiguresCORS(t *testing.T) {
-	server := httpserver.NewServer([]httpserver.Route{
-		&httpserver.PublicHandler{
-			Path: "/health",
-			Handler: func(c *echo.Context) error {
-				return c.NoContent(http.StatusNoContent)
+	server := httpserver.NewServer(httpserver.ServerParams{
+		Routes: []httpserver.Route{
+			&httpserver.PublicHandler{
+				Path: "/health",
+				Handler: func(c *echo.Context) error {
+					return c.NoContent(http.StatusNoContent)
+				},
 			},
 		},
 	})

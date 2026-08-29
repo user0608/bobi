@@ -19,34 +19,24 @@ type HttpApiConfig struct {
 	LogFmt  string `mapstructure:"log_fmt"`
 }
 
-func buildMiddlewares(route Route) []echo.MiddlewareFunc {
-	var before []echo.MiddlewareFunc
-	var after []echo.MiddlewareFunc
-
-	if r, ok := route.(BeforeSecurityMiddlewareProvider); ok {
-		before = r.BeforeSecurityMiddlewares()
-	}
-
-	if r, ok := route.(AfterSecurityMiddlewareProvider); ok {
-		after = r.AfterSecurityMiddlewares()
-	}
-
-	middlewares := make([]echo.MiddlewareFunc, 0, len(before)+len(after))
-	middlewares = append(middlewares, before...)
-	middlewares = append(middlewares, after...)
-
-	return middlewares
+type ServerParams struct {
+	fx.In
+	Routes        []Route            `group:"http-api-routes"`
+	MiddlResolver MiddlewareResolver `optional:"true"`
 }
 
-func NewServer(routes []Route) *echo.Echo {
+func NewServer(p ServerParams) *echo.Echo {
 	server := echo.New()
 
 	server.Use(middleware.RequestLogger())
 	server.Use(middleware.Recover())
 	server.Use(middleware.CORS("*"))
 
-	for _, route := range routes {
-		routeMiddlewares := buildMiddlewares(route)
+	for _, route := range p.Routes {
+		routeMiddlewares := []echo.MiddlewareFunc{}
+		if p.MiddlResolver != nil {
+			routeMiddlewares = p.MiddlResolver.Resolve(route)
+		}
 		server.Add(route.GetMethod(), route.GetPath(), route.HandleRequest, routeMiddlewares...)
 	}
 
@@ -54,12 +44,7 @@ func NewServer(routes []Route) *echo.Echo {
 }
 
 var Module = fx.Module("http-server",
-	fx.Provide(
-		fx.Annotate(
-			NewServer,
-			fx.ParamTags(RouteTag, ""),
-		),
-	),
+	fx.Provide(NewServer),
 )
 
 func StartWebServer(
