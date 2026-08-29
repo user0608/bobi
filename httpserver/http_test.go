@@ -95,6 +95,43 @@ func TestNewServerRegistersHTTPMethods(t *testing.T) {
 	}
 }
 
+func TestNewServerResolvesRouteMiddlewares(t *testing.T) {
+	publicRoute := &httpserver.PublicHandler{
+		Path: "/public",
+		Handler: func(c *echo.Context) error {
+			return c.NoContent(http.StatusNoContent)
+		},
+	}
+	protectedRoute := &httpserver.PublicHandler{
+		Path: "/protected",
+		Handler: func(c *echo.Context) error {
+			return c.NoContent(http.StatusNoContent)
+		},
+	}
+	resolver := &testMiddlewareResolver{}
+
+	server := httpserver.NewServer(httpserver.ServerParams{
+		Routes:        []httpserver.Route{publicRoute, protectedRoute},
+		MiddlResolver: resolver,
+	})
+
+	require.Equal(t, []httpserver.Route{publicRoute, protectedRoute}, resolver.routes)
+
+	publicRequest := httptest.NewRequest(http.MethodGet, publicRoute.Path, nil)
+	publicRecorder := httptest.NewRecorder()
+	server.ServeHTTP(publicRecorder, publicRequest)
+
+	require.Equal(t, http.StatusNoContent, publicRecorder.Code)
+	require.Empty(t, publicRecorder.Header().Get("X-Route-Middleware"))
+
+	request := httptest.NewRequest(http.MethodGet, protectedRoute.Path, nil)
+	recorder := httptest.NewRecorder()
+	server.ServeHTTP(recorder, request)
+
+	require.Equal(t, http.StatusNoContent, recorder.Code)
+	require.Equal(t, protectedRoute.Path, recorder.Header().Get("X-Route-Middleware"))
+}
+
 func TestNewServerConfiguresCORS(t *testing.T) {
 	server := httpserver.NewServer(httpserver.ServerParams{
 		Routes: []httpserver.Route{
@@ -152,4 +189,22 @@ func TestMethodsReturnExpectedHTTPMethods(t *testing.T) {
 			require.Equal(t, tt.want, tt.method())
 		})
 	}
+}
+
+type testMiddlewareResolver struct {
+	routes []httpserver.Route
+}
+
+func (r *testMiddlewareResolver) Resolve(route httpserver.Route) []echo.MiddlewareFunc {
+	r.routes = append(r.routes, route)
+	if route.GetPath() == "/public" {
+		return nil
+	}
+
+	return []echo.MiddlewareFunc{func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			c.Response().Header().Set("X-Route-Middleware", route.GetPath())
+			return next(c)
+		}
+	}}
 }

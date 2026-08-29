@@ -46,8 +46,8 @@ anonymous constructor with `AsRoute`.
 
 `bobi` does not provide a protected-route type or an authorization middleware.
 For a protected endpoint, the application must define a type that implements
-`httpserver.Route` and, when needed,
-`BeforeSecurityMiddlewareProvider` or `AfterSecurityMiddlewareProvider`:
+`httpserver.Route`. The application-wide `httpserver.MiddlewareResolver` can
+then identify that route and return its security middleware:
 
 ```go
 type AdminRoute struct {
@@ -75,8 +75,13 @@ func (route *AdminRoute) HandleRequest(c *echo.Context) error {
 	return answer.Ok(c, users)
 }
 
-func (route *AdminRoute) BeforeSecurityMiddlewares() []echo.MiddlewareFunc {
-	return []echo.MiddlewareFunc{RequireAdmin}
+type MiddlewareResolver struct{}
+
+func (resolver *MiddlewareResolver) Resolve(route httpserver.Route) []echo.MiddlewareFunc {
+	if _, ok := route.(*AdminRoute); ok {
+		return []echo.MiddlewareFunc{RequireAdmin}
+	}
+	return nil
 }
 ```
 
@@ -112,8 +117,29 @@ fx.Provide(
 )
 ```
 
-`httpserver.Module` creates the Echo server. `setup.Service.Run` invokes `httpserver.StartWebServer`, which reads `address` and `log_fmt` from Viper configuration and performs graceful shutdown.
+`httpserver.Module` creates the Echo server. `httpserver.NewServer` receives a
+`httpserver.ServerParams` value containing the grouped routes and an optional
+`MiddlewareResolver`. `setup.Service.Run` invokes
+`httpserver.StartWebServer`, which reads `address` and `log_fmt` from Viper
+configuration and performs graceful shutdown.
 
 ## Middleware
 
-Implement `BeforeSecurityMiddlewareProvider` or `AfterSecurityMiddlewareProvider` when a route supplies middleware. `BeforeMiddlewares` and `Middlewares` on `PublicHandler` are placed in those respective phases. Do not assume Bobi provides authentication or authorization middleware; wire those in the application.
+Implement `httpserver.MiddlewareResolver` in the application when routes need
+route-specific middleware:
+
+```go
+func NewMiddlewareResolver() httpserver.MiddlewareResolver {
+	return &MiddlewareResolver{}
+}
+
+// Register it when using setup.Service.
+service.Run(fx.Provide(NewMiddlewareResolver))
+```
+
+`Resolve` is called once for each registered route while the Echo server is
+created. Return the middleware for that route in the desired order, or `nil`
+when the route needs no additional middleware. The resolver is optional; if no
+resolver is registered, routes are added without route-specific middleware.
+Do not assume Bobi provides authentication or authorization middleware; define
+and wire those middlewares in the application.
