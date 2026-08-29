@@ -92,7 +92,9 @@ func (s *Service) baseOptions() []fx.Option {
 	}
 	if s.migrationFS != nil {
 		options = append(options,
-			fx.Supply(migrations.MigrationFS(s.migrationFS)),
+			fx.Provide(func() migrations.MigrationFS {
+				return migrations.MigrationFS(s.migrationFS)
+			}),
 			fx.Provide(migrations.NewMigrationRunner),
 		)
 	}
