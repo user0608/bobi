@@ -35,12 +35,9 @@ var (
 	sharedStorage   connection.StorageManager
 	sharedContainer *tcpostgres.PostgresContainer
 	sharedErr       error
-	migrationsDir   fs.FS
 )
 
-func SetMigrationsDir(fs fs.FS) { migrationsDir = fs }
-
-func NewPostgresStorage(t *testing.T) connection.StorageManager {
+func NewPostgresStorage(t *testing.T, migrationsDir fs.FS) connection.StorageManager {
 	t.Helper()
 
 	postgresOnce.Do(func() {
@@ -50,7 +47,7 @@ func NewPostgresStorage(t *testing.T) connection.StorageManager {
 	require.NoError(t, sharedErr)
 	require.NotNil(t, sharedStorage)
 
-	require.NoError(t, runMigrations(sharedStorage))
+	require.NoError(t, runMigrations(sharedStorage, migrationsDir))
 
 	t.Cleanup(func() {
 		dropPublicTables(t, sharedStorage)
@@ -59,7 +56,7 @@ func NewPostgresStorage(t *testing.T) connection.StorageManager {
 	return sharedStorage
 }
 
-func NewSQLiteStorage(t *testing.T) connection.StorageManager {
+func NewSQLiteStorage(t *testing.T, migrationsDir fs.FS) connection.StorageManager {
 	t.Helper()
 
 	storage, err := connection.NewConnection(connection.DatabaseConfig{
@@ -70,7 +67,7 @@ func NewSQLiteStorage(t *testing.T) connection.StorageManager {
 	require.NoError(t, err)
 	require.NotNil(t, storage)
 
-	require.NoError(t, runMigrations(storage))
+	require.NoError(t, runMigrations(storage, migrationsDir))
 
 	return storage
 }
@@ -127,7 +124,7 @@ func newStorageFromContainer(ctx context.Context, container *tcpostgres.Postgres
 	})
 }
 
-func runMigrations(storage connection.StorageManager) error {
+func runMigrations(storage connection.StorageManager, migrationsDir fs.FS) error {
 	if migrationsDir == nil {
 		return nil
 	}

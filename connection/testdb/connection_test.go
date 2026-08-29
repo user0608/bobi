@@ -12,7 +12,7 @@ import (
 
 func TestStorageManager_Conn(t *testing.T) {
 	ctx := context.Background()
-	storage := testdb.NewPostgresStorage(t)
+	storage := testdb.NewPostgresStorage(t, nil)
 
 	err := storage.Conn(ctx).Exec(`
 		CREATE TABLE conn_test (
@@ -37,7 +37,7 @@ func TestStorageManager_Conn(t *testing.T) {
 
 func TestStorageManager_WithTx_Commits(t *testing.T) {
 	ctx := context.Background()
-	storage := testdb.NewPostgresStorage(t)
+	storage := testdb.NewPostgresStorage(t, nil)
 
 	err := storage.Conn(ctx).Exec(`
 		CREATE TABLE with_tx_commit_test (
@@ -64,7 +64,7 @@ func TestStorageManager_WithTx_Commits(t *testing.T) {
 
 func TestStorageManager_WithTx_Rollbacks(t *testing.T) {
 	ctx := context.Background()
-	storage := testdb.NewPostgresStorage(t)
+	storage := testdb.NewPostgresStorage(t, nil)
 
 	err := storage.Conn(ctx).Exec(`
 		CREATE TABLE with_tx_rollback_test (
@@ -96,7 +96,7 @@ func TestStorageManager_WithTx_Rollbacks(t *testing.T) {
 
 func TestStorageManager_WithTx_NestedTransactionUsesSameTx(t *testing.T) {
 	ctx := context.Background()
-	storage := testdb.NewPostgresStorage(t)
+	storage := testdb.NewPostgresStorage(t, nil)
 
 	err := storage.Conn(ctx).Exec(`
 		CREATE TABLE nested_tx_test (
@@ -131,7 +131,7 @@ func TestStorageManager_WithTx_NestedTransactionUsesSameTx(t *testing.T) {
 
 func TestStorageManager_WithTx_NestedTransactionRollsBackAll(t *testing.T) {
 	ctx := context.Background()
-	storage := testdb.NewPostgresStorage(t)
+	storage := testdb.NewPostgresStorage(t, nil)
 
 	err := storage.Conn(ctx).Exec(`
 		CREATE TABLE nested_tx_rollback_test (
@@ -174,7 +174,7 @@ func TestStorageManager_WithTx_NestedTransactionRollsBackAll(t *testing.T) {
 
 func TestStorageManager_WithTx_NilFunc(t *testing.T) {
 	ctx := context.Background()
-	storage := testdb.NewPostgresStorage(t)
+	storage := testdb.NewPostgresStorage(t, nil)
 
 	err := storage.WithTx(ctx, nil)
 
@@ -183,7 +183,7 @@ func TestStorageManager_WithTx_NilFunc(t *testing.T) {
 
 func TestSQLiteStorageManager_ConnAndTransactions(t *testing.T) {
 	ctx := context.Background()
-	storage := testdb.NewSQLiteStorage(t)
+	storage := testdb.NewSQLiteStorage(t, nil)
 
 	err := storage.Conn(ctx).Exec(`
 		CREATE TABLE local_sqlite_test (
