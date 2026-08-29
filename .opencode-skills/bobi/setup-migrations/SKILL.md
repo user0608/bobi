@@ -45,3 +45,44 @@ DROP TABLE users;
 ```
 
 With migrations configured, run `go run . migrate up`, `down`, `status`, or `script`. Migration files are read from the embedded filesystem in lexical filename order. `script` prints only the Goose Up SQL.
+
+## Database views
+
+Do not add `CREATE VIEW`, `CREATE OR REPLACE VIEW`, or
+`CREATE MATERIALIZED VIEW` statements to numbered migration files. Views are
+not versioned as migrations. Create and edit their definitions directly under
+`migrations/_views` instead:
+
+```text
+migrations/
+|-- 001_create_users.sql
+|-- 002_add_user_status.sql
+`-- _views/
+    |-- active_users.sql
+    `-- reporting/
+        `-- user_totals.sql
+```
+
+Prefer one view per SQL file. Files may be organized recursively and are
+executed in lexical path order. Use a later filename for a view that depends on
+an earlier view.
+
+```sql
+CREATE VIEW active_users AS
+SELECT id, name
+FROM users
+WHERE status = 'active';
+```
+
+To change a view, edit its existing file in `_views`; do not create a numbered
+migration containing the replacement. To add a view, create a new `.sql` file
+in `_views`.
+
+Before `migrate up`, Bobi drops the views declared in `_views` in reverse
+declaration order. After applying pending migrations, it executes every `.sql`
+file in `_views` again. This refresh also occurs when there are no pending
+migrations, so editing a view only requires running `migrate up`.
+
+`migrate down`, `status`, and `script` do not process `_views`. A down migration
+must handle any view-related compatibility requirements itself. The `script`
+output contains numbered Goose migrations only, not view definitions.
