@@ -17,7 +17,7 @@ func main() {
 	ui, _ := fs.Sub(UIDir, "dist")
 
 	service := setup.NewService(
-		// setup.WithMigration(MigrationsDir),
+		setup.WithMigration(MigrationsDir),
 		setup.WithSPA_UI(ui),
 	)
 	service.Run()

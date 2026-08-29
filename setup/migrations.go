@@ -17,7 +17,7 @@ func (s *Service) runMigration(action string) {
 	}
 
 	app := fx.New(
-		fx.NopLogger,
+		// fx.NopLogger,
 		fx.Options(s.baseOptions()...),
 		fx.Invoke(func(mr *migrations.MigrationRunner, shutdowner fx.Shutdowner) {
 			exitCode := runMigrationAction(context.Background(), mr, action, os.Stdout)
@@ -31,7 +31,7 @@ func (s *Service) runMigration(action string) {
 
 func (s *Service) runMigrationScript() {
 	app := fx.New(
-		fx.NopLogger,
+		// fx.NopLogger,
 		fx.Supply(migrations.MigrationFS(s.migrationFS)),
 		fx.Provide(migrations.NewMigrationScriptRunner),
 		fx.Invoke(func(mr *migrations.MigrationRunner, shutdowner fx.Shutdowner) {
