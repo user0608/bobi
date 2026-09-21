@@ -248,7 +248,6 @@ DROP SCHEMA accounts CASCADE;
 }
 
 func TestSQLiteStorageManager_AppliesMigrations(t *testing.T) {
-	require.NoError(t, goose.SetDialect("sqlite3"))
 
 	migrations := fstest.MapFS{
 		"migrations/001_create_users.sql": &fstest.MapFile{Data: []byte(`-- +goose Up

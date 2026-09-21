@@ -67,6 +67,7 @@ func NewSQLiteStorage(t *testing.T, migrationsDir fs.FS) connection.StorageManag
 	require.NoError(t, err)
 	require.NotNil(t, storage)
 
+	goose.SetDialect("sqlite3")
 	require.NoError(t, runMigrations(storage, migrationsDir))
 
 	return storage
