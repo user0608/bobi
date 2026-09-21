@@ -50,7 +50,7 @@ func NewPostgresStorage(t *testing.T, migrationsDir fs.FS) connection.StorageMan
 	require.NoError(t, runMigrations(sharedStorage, migrationsDir))
 
 	t.Cleanup(func() {
-		dropPublicTables(t, sharedStorage)
+		resetSchemas(t, sharedStorage)
 	})
 
 	return sharedStorage
@@ -144,40 +144,26 @@ func runMigrations(storage connection.StorageManager, migrationsDir fs.FS) error
 	return nil
 }
 
-func dropPublicTables(t *testing.T, storage connection.StorageManager) {
+func resetSchemas(t *testing.T, storage connection.StorageManager) {
 	t.Helper()
 
 	err := storage.Conn(context.Background()).Exec(`
 		DO $$
 		DECLARE
-			view_record RECORD;
-			table_record RECORD;
 			schema_record RECORD;
 		BEGIN
-			FOR view_record IN (
-				SELECT schemaname, viewname
-				FROM pg_views
-				WHERE schemaname = 'public'
-			) LOOP
-				EXECUTE 'DROP VIEW IF EXISTS ' || quote_ident(view_record.schemaname) || '.' || quote_ident(view_record.viewname) || ' CASCADE';
-			END LOOP;
-
-			FOR table_record IN (
-				SELECT tablename
-				FROM pg_tables
-				WHERE schemaname = 'public'
-			) LOOP
-				EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(table_record.tablename) || ' CASCADE';
-			END LOOP;
-
 			FOR schema_record IN (
 				SELECT schema_name
 				FROM information_schema.schemata
 				WHERE schema_name NOT IN ('public', 'information_schema')
 				  AND schema_name NOT LIKE 'pg_%'
 			) LOOP
-				EXECUTE 'DROP SCHEMA IF EXISTS ' || quote_ident(schema_record.schema_name) || ' CASCADE';
+				EXECUTE format('DROP SCHEMA IF EXISTS %I CASCADE', schema_record.schema_name);
 			END LOOP;
+
+			DROP SCHEMA IF EXISTS public CASCADE;
+			CREATE SCHEMA public;
+			GRANT ALL ON SCHEMA public TO public;
 		END $$;
 	`).Error
 	require.NoError(t, err)
