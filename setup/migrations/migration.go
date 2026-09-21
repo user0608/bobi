@@ -102,7 +102,7 @@ func (mr *MigrationRunner) SQLScript() (string, error) {
 	return output.String(), nil
 }
 
-func (mr *MigrationRunner) setupGoose(ctx context.Context) (*sql.DB, error) {
+func (mr *MigrationRunner) connection(ctx context.Context) (*sql.DB, error) {
 	if mr.storageManager == nil {
 		return nil, errors.New("migration storage manager is required")
 	}
@@ -123,15 +123,35 @@ func (mr *MigrationRunner) runGoose(ctx context.Context, action string, fn func(
 		goose.SetBaseFS(mr.migrationFS)
 	}
 
-	db, err := mr.setupGoose(ctx)
+	db, err := mr.connection(ctx)
 	if err != nil {
 		return err
+	}
+	if err := goose.SetDialect(databaseDialect(db)); err != nil {
+		return fmt.Errorf("set goose dialect: %w", err)
 	}
 	if err := fn(db); err != nil {
 		slog.Error("database migration failed", "action", action, "error", err)
 		return err
 	}
 	return nil
+}
+
+func databaseDialect(db *sql.DB) string {
+	if db == nil {
+		return "unknown"
+	}
+
+	driverType := strings.ToLower(fmt.Sprintf("%T", db.Driver()))
+	switch {
+	case strings.Contains(driverType, "stdlib.driver"),
+		strings.Contains(driverType, "pq.driver"):
+		return "postgres"
+	case strings.Contains(driverType, "sqlite"):
+		return "sqlite3"
+	default:
+		return "unknown"
+	}
 }
 
 func (mr *MigrationRunner) Up(ctx context.Context) error {

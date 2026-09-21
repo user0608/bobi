@@ -8,7 +8,6 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/pressly/goose/v3"
 	"github.com/user0608/bobi/connection"
 	"github.com/user0608/bobi/setup/utils/sqlview"
 )
@@ -259,9 +258,6 @@ func TestDropViewSQL(t *testing.T) {
 func newSQLiteMigrationRunner(t *testing.T, migrationFS fstest.MapFS) (*MigrationRunner, *sql.DB) {
 	t.Helper()
 
-	if err := goose.SetDialect("sqlite3"); err != nil {
-		t.Fatalf("set goose dialect: %v", err)
-	}
 	storage, err := connection.NewConnection(connection.DatabaseConfig{
 		Driver:   connection.DatabaseDriverSQLite,
 		Database: t.TempDir() + "/test.db",

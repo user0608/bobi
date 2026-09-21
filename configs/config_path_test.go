@@ -64,7 +64,7 @@ func TestConfigPathFromArgsErrors(t *testing.T) {
 		args []string
 		want string
 	}{
-		{name: "flag not provided", args: []string{"--verbose"}, want: "config flag not provided"},
+		{name: "flag not provided", args: []string{"--verbose"}, want: "--config flag not provided"},
 		{name: "missing long flag value", args: []string{"--config"}, want: "missing value for config flag"},
 		{name: "missing short flag value", args: []string{"-c"}, want: "missing value for config flag"},
 		{name: "empty long flag value", args: []string{"--config", "   "}, want: "empty config path"},

@@ -2,12 +2,13 @@ package migrations
 
 import (
 	"context"
+	"database/sql"
 	"io/fs"
 	"strings"
 	"testing"
 	"testing/fstest"
 
-	"github.com/pressly/goose/v3"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/user0608/bobi/connection"
 )
 
@@ -144,10 +145,6 @@ func TestMigrationRunnerRequiresStorage(t *testing.T) {
 }
 
 func TestMigrationRunnerGooseOperations(t *testing.T) {
-	if err := goose.SetDialect("sqlite3"); err != nil {
-		t.Fatal(err)
-	}
-
 	mfs := fstest.MapFS{
 		"migrations/001_users.sql": &fstest.MapFile{Data: []byte(`-- +goose Up
 CREATE TABLE users (id INTEGER PRIMARY KEY);
@@ -189,10 +186,6 @@ DROP TABLE users;
 }
 
 func TestMigrationRunnerGooseErrors(t *testing.T) {
-	if err := goose.SetDialect("sqlite3"); err != nil {
-		t.Fatal(err)
-	}
-
 	storage, err := connection.NewConnection(connection.DatabaseConfig{
 		Driver:   connection.DatabaseDriverSQLite,
 		Database: t.TempDir() + "/test.db",
@@ -210,5 +203,60 @@ func TestMigrationRunnerGooseErrors(t *testing.T) {
 	err = runner.Up(context.Background())
 	if err == nil {
 		t.Fatal("Up() error = nil, want error")
+	}
+}
+
+func TestDatabaseDialect(t *testing.T) {
+	tests := []struct {
+		name string
+		db   *sql.DB
+		want string
+	}{
+		{
+			name: "postgres",
+			db: func() *sql.DB {
+				db, err := sql.Open("pgx", "")
+				if err != nil {
+					t.Fatal(err)
+				}
+				return db
+			}(),
+			want: "postgres",
+		},
+		{
+			name: "sqlite",
+			want: "sqlite3",
+		},
+		{
+			name: "nil",
+			want: "unknown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.db != nil {
+				t.Cleanup(func() { _ = tt.db.Close() })
+			}
+
+			if tt.name == "sqlite" {
+				storage, err := connection.NewConnection(connection.DatabaseConfig{
+					Driver:   connection.DatabaseDriverSQLite,
+					Database: t.TempDir() + "/test.db",
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				tt.db, err = storage.Conn(context.Background()).DB()
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = tt.db.Close() })
+			}
+
+			if got := databaseDialect(tt.db); got != tt.want {
+				t.Fatalf("databaseDialect() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
