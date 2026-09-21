@@ -4,9 +4,9 @@ import (
 	"errors"
 	"net/http"
 
+	gosqlite "github.com/glebarez/go-sqlite"
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
-	moderncsqlite "modernc.org/sqlite"
 )
 
 // Dbf translates errors from either supported database backend.
@@ -20,7 +20,7 @@ func Dbf(err error) error {
 	if pgerr, ok := errors.AsType[*pgconn.PgError](err); ok {
 		return postgresError(err, pgerr)
 	}
-	if sqliteErr, ok := errors.AsType[*moderncsqlite.Error](err); ok {
+	if sqliteErr, ok := errors.AsType[*gosqlite.Error](err); ok {
 		return sqliteError(err, sqliteErr)
 	}
 	return newError(err, ErrDatabase, http.StatusInternalServerError)

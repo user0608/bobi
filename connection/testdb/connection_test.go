@@ -236,15 +236,28 @@ DROP SCHEMA accounts CASCADE;
 	}
 
 	storage := testdb.NewPostgresStorage(t, migrations)
+	db, err := storage.Conn(context.Background()).DB()
+	require.NoError(t, err)
 
 	var tableCount int64
-	err := storage.Conn(context.Background()).Raw(`
+	err = storage.Conn(context.Background()).Raw(`
 		SELECT count(*)
 		FROM information_schema.tables
 		WHERE table_schema = 'accounts' AND table_name = 'users'
 	`).Scan(&tableCount).Error
 	require.NoError(t, err)
 	require.Equal(t, int64(1), tableCount)
+
+	goose.SetBaseFS(migrations)
+	require.NoError(t, goose.DownContext(context.Background(), db, "migrations"))
+
+	err = storage.Conn(context.Background()).Raw(`
+		SELECT count(*)
+		FROM information_schema.tables
+		WHERE table_schema = 'accounts' AND table_name = 'users'
+	`).Scan(&tableCount).Error
+	require.NoError(t, err)
+	require.Equal(t, int64(0), tableCount)
 }
 
 func TestSQLiteStorageManager_AppliesMigrations(t *testing.T) {
@@ -261,9 +274,11 @@ DROP TABLE users;
 	}
 
 	storage := testdb.NewSQLiteStorage(t, migrations)
+	db, err := storage.Conn(context.Background()).DB()
+	require.NoError(t, err)
 
 	var tableCount int64
-	err := storage.Conn(context.Background()).Table("users").Count(&tableCount).Error
+	err = storage.Conn(context.Background()).Table("users").Count(&tableCount).Error
 	require.NoError(t, err)
 	require.Equal(t, int64(0), tableCount)
 
@@ -273,4 +288,8 @@ DROP TABLE users;
 		"migrated",
 	).Error
 	require.NoError(t, err)
+
+	goose.SetBaseFS(migrations)
+	require.NoError(t, goose.DownContext(context.Background(), db, "migrations"))
+	require.False(t, storage.Conn(context.Background()).Migrator().HasTable("users"))
 }

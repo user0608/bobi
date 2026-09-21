@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	moderncsqlite "modernc.org/sqlite"
+	gosqlite "github.com/glebarez/go-sqlite"
 )
 
 func TestDbfSQLiteUniqueConstraint(t *testing.T) {
@@ -26,7 +26,7 @@ func TestDbfSQLiteUniqueConstraint(t *testing.T) {
 		t.Fatal("expected unique constraint error")
 	}
 
-	if sqliteErr, ok := errors.AsType[*moderncsqlite.Error](err); !ok {
+	if sqliteErr, ok := errors.AsType[*gosqlite.Error](err); !ok {
 		t.Fatalf("expected SQLite error, got %T", err)
 	} else if sqliteErr.Code() != sqliteConstraintUnique {
 		t.Fatalf("expected SQLite unique code %d, got %d", sqliteConstraintUnique, sqliteErr.Code())

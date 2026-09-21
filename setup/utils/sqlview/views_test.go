@@ -9,7 +9,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/glebarez/go-sqlite"
 )
 
 func TestViews(t *testing.T) {

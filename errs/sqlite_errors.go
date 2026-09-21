@@ -3,7 +3,7 @@ package errs
 import (
 	"net/http"
 
-	moderncsqlite "modernc.org/sqlite"
+	gosqlite "github.com/glebarez/go-sqlite"
 )
 
 const (
@@ -17,7 +17,7 @@ const (
 	sqliteLocked            = 6
 )
 
-func sqliteError(err error, sqliteErr *moderncsqlite.Error) error {
+func sqliteError(err error, sqliteErr *gosqlite.Error) error {
 	switch sqliteErr.Code() {
 	case sqliteConstraintUnique, sqliteConstraintPrimary:
 		return newError(nil, pgMessage(PgDuplicateRecordError), http.StatusBadRequest)
