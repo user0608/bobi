@@ -131,3 +131,26 @@ func TestParseMigrateCommand(t *testing.T) {
 		})
 	}
 }
+
+func TestHasMigrateOnStartFlag(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{name: "flag alone", args: []string{"--migrate-on-start"}, want: true},
+		{name: "flag with config", args: []string{"--config", "app.yml", "--migrate-on-start"}, want: true},
+		{name: "no flag", args: []string{"--config", "app.yml"}},
+		{name: "similar flag", args: []string{"--migrate-on-start-extra"}},
+		{name: "flag after double dash", args: []string{"--", "--migrate-on-start"}},
+		{name: "flag before double dash", args: []string{"--migrate-on-start", "--"}, want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := HasMigrateOnStartFlag(tt.args); got != tt.want {
+				t.Fatalf("HasMigrateOnStartFlag(%q) = %v, want %v", tt.args, got, tt.want)
+			}
+		})
+	}
+}

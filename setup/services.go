@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"context"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -45,6 +46,12 @@ func (s *Service) Run(opts ...fx.Option) {
 	}
 
 	var options = s.baseOptions()
+
+	if ok := migrations.HasMigrateOnStartFlag(os.Args[1:]); ok && s.migrationFS != nil {
+		options = append(options, fx.Invoke(func(mr *migrations.MigrationRunner) error {
+			return mr.Up(context.Background())
+		}))
+	}
 
 	options = append(options, fx.Provide(s.jwtKeysConfig, jwtkeys.NewJwtKeyStore))
 	options = append(options, opts...)

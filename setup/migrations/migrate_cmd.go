@@ -23,6 +23,19 @@ func ParseMigrateCommand(args []string) (string, bool) {
 	return action, true
 }
 
+func HasMigrateOnStartFlag(args []string) bool {
+	for _, arg := range args {
+		if arg == "--" {
+			break
+		}
+		if arg == "--migrate-on-start" {
+			return true
+		}
+	}
+
+	return false
+}
+
 func parseCommandArgs(args []string) (cmd, action string, extra bool) {
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
