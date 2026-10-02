@@ -120,7 +120,7 @@ func (s *Service) databaseConfig(v *viper.Viper) (connection.DatabaseConfig, err
 
 func (s *Service) jwtKeysConfig(v *viper.Viper) (jwtkeys.JwtKeysConfig, error) {
 	var config jwtkeys.JwtKeysConfig
-	if err := v.UnmarshalKey("database", &config); err != nil {
+	if err := v.UnmarshalKey("jwt_keys", &config); err != nil {
 		return jwtkeys.JwtKeysConfig{}, err
 	}
 	return config, nil
