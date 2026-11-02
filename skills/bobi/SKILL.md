@@ -1,6 +1,6 @@
 ---
 name: bobi
-description: Use the Bobi Go library for HTTP services, validation, errors, persistence, configuration, migrations, JWT keys, and common types. Trigger when a project imports github.com/user0608/bobi or mentions Bobi packages.
+description: Use the Bobi Go library for HTTP services, validation, errors, persistence, file storage, configuration, migrations, JWT keys, and common types. Trigger when a project imports github.com/user0608/bobi or mentions Bobi packages.
 ---
 
 # Bobi
@@ -13,6 +13,7 @@ Use `github.com/user0608/bobi` as a set of focused packages. Inspect `go.mod` fi
 - Request binding, multipart files, or struct validation: read `binds-kcheck/SKILL.md`.
 - HTTP response envelopes or application errors: read `errors-answer/SKILL.md`.
 - GORM, SQLite, PostgreSQL, or transactions: read `connection/SKILL.md`.
+- Local file storage, AWS S3, MinIO, or bucket prefixes: read `storage/SKILL.md`.
 - Application bootstrap, embedded assets, or migrations: read `setup-migrations/SKILL.md`.
 - RSA JWT key storage: read `jwtkeys/SKILL.md`.
 - Date/time and JSON array types: read `types/SKILL.md`.

@@ -16,6 +16,7 @@ persistence, configuration, errors, common types, and JWT key management.
 - `setup/migrations`: database migration execution and management.
 - `setup/spa`: static assets with SPA route fallback.
 - `setup/web`: static web asset serving.
+- [`storage`](storage/README.md): local filesystem, AWS S3, and MinIO storage behind one interface.
 - `types`: helper types for dates, times, UUIDs, and arrays.
 
 ## Desarrollo

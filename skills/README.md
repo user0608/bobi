@@ -8,7 +8,7 @@ Desde la raiz del proyecto consumidor, copia el contenido de esta carpeta dentro
 
 ```bash
 mkdir -p .opencode/skills
-cp -R /ruta/a/bobi/.opencode-skills/bobi .opencode/skills/
+cp -R /ruta/a/bobi/skills/bobi .opencode/skills/
 ```
 
 La estructura final debe ser:
@@ -16,6 +16,7 @@ La estructura final debe ser:
 ```text
 .opencode/skills/bobi/SKILL.md
 .opencode/skills/bobi/httpserver/SKILL.md
+.opencode/skills/bobi/storage/SKILL.md
 ...
 ```
 

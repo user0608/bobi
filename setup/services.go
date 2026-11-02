@@ -15,6 +15,7 @@ import (
 	"github.com/user0608/bobi/setup/migrations"
 	"github.com/user0608/bobi/setup/spa"
 	"github.com/user0608/bobi/setup/web"
+	"github.com/user0608/bobi/storage"
 	"go.uber.org/fx"
 )
 
@@ -25,6 +26,7 @@ type Service struct {
 	webFS            fs.FS
 	skipConfigLoad   bool
 	skipDBConnection bool
+	storageEnabled   bool
 }
 
 func NewService(opts ...Option) *Service {
@@ -55,6 +57,9 @@ func (s *Service) Run(opts ...fx.Option) {
 
 	options = append(options, fx.Provide(s.jwtKeysConfig, jwtkeys.NewJwtKeyStore))
 	options = append(options, opts...)
+	if s.storageEnabled {
+		options = append(options, fx.Provide(s.storageConfig, storage.NewStorage))
+	}
 	options = append(options,
 		fx.Provide(s.httpServerConfig),
 		httpserver.Module,
@@ -129,6 +134,14 @@ func (s *Service) jwtKeysConfig(v *viper.Viper) (jwtkeys.JwtKeysConfig, error) {
 	var config jwtkeys.JwtKeysConfig
 	if err := v.UnmarshalKey("jwt_keys", &config); err != nil {
 		return jwtkeys.JwtKeysConfig{}, err
+	}
+	return config, nil
+}
+
+func (s *Service) storageConfig(v *viper.Viper) (storage.Config, error) {
+	var config storage.Config
+	if err := v.UnmarshalKey("storage", &config); err != nil {
+		return storage.Config{}, err
 	}
 	return config, nil
 }

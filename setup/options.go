@@ -47,3 +47,11 @@ func WithSkipDBConnection() Option {
 		s.skipDBConnection = true
 	}
 }
+
+// WithStorage provides storage.Storage using the storage configuration section.
+// Storage is opt-in and is constructed by Fx only when a consumer needs it.
+func WithStorage() Option {
+	return func(s *Service) {
+		s.storageEnabled = true
+	}
+}
